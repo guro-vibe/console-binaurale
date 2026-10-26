@@ -347,12 +347,14 @@ function noiseBuffer(ctx,kind){
 }
 
 /* ---------- riverbero: impulso generato alla frequenza della scheda audio ---------- */
-const IRSPEC={stanza:[1.4,0.35],sala:[3.2,0.5],cattedrale:[6.5,0.65],infinito:[13,0.8]};
+const IRSPEC={stanza:[1.4,0.35],sala:[3.2,0.5],cattedrale:[5,0.65],infinito:[8,0.8]};
+/* modalità leggera: impostata dall'interfaccia sui dispositivi touch, riduce il calcolo */
+let LIGHT=false;
 const IRCACHE={};
 function reverbBuffer(ctx,type){
-  const sr=ctx.sampleRate,key=sr+"|"+type;
+  const sr=ctx.sampleRate,key=sr+"|"+type+"|"+LIGHT;
   if(!IRCACHE[key]){
-    const sp=IRSPEC[type]||IRSPEC.sala,dur=sp[0],damp=sp[1],len=Math.floor(sr*dur),arr=[];
+    const sp=IRSPEC[type]||IRSPEC.sala,dur=LIGHT?Math.min(sp[0],3.5):sp[0],damp=sp[1],len=Math.floor(sr*dur),arr=[];
     [3,17].forEach(seed=>{const r=rng(seed+dur*10),a=new Float32Array(len);let lp=0;
       for(let i=0;i<len;i++){const t=i/sr;lp=lp*damp+(r()*2-1)*(1-damp);
         a[i]=lp*Math.pow(1-t/dur,2)*Math.exp(-t*3/dur)*(t<0.015?t/0.015:1)}
@@ -408,15 +410,15 @@ function makeEngine(ctx,out,p,users){
   /* --- catena effetti sulla musica --- */
   const musicBus=G(1);
   // calore: saturazione morbida in parallelo + taglio degli acuti
-  const warmDry=G(1-p.warmth),warmWet=G(p.warmth*0.9),shaper=ctx.createWaveShaper();shaper.curve=shaperCurve();shaper.oversample="2x";
+  const warmDry=G(1-p.warmth),warmWet=G(p.warmth*0.9),shaper=ctx.createWaveShaper();shaper.curve=shaperCurve();shaper.oversample=LIGHT?"none":"2x";
   const warmSum=G(1),shelf=ctx.createBiquadFilter();shelf.type="highshelf";shelf.frequency.value=3500;shelf.gain.value=-p.warmth*9;
-  musicBus.connect(warmDry);musicBus.connect(shaper);shaper.connect(warmWet);warmDry.connect(warmSum);warmWet.connect(warmSum);warmSum.connect(shelf);
+  musicBus.connect(warmDry);shaper.connect(warmWet);warmDry.connect(warmSum);warmWet.connect(warmSum);warmSum.connect(shelf);
   // onda del filtro
   const sweepF=ctx.createBiquadFilter();sweepF.type="lowpass";sweepF.Q.value=0.6;sweepF.frequency.value=p.sweep>0?1900:20000;
   const swL=osc("sine",0.045),swG=G(p.sweep*1500);swL.connect(swG);swG.connect(sweepF.frequency);shelf.connect(sweepF);
   // chorus stereo
   const chSum=G(1),chSplit=ctx.createChannelSplitter(2),chMerge=ctx.createChannelMerger(2),chWet=G(p.chorus*0.8);
-  sweepF.connect(chSum);sweepF.connect(chSplit);
+  sweepF.connect(chSum);
   const chLfos=[];
   [0,1].forEach(c=>{const d=ctx.createDelay(0.1);d.delayTime.value=0.025;const l=osc("sine",c?0.41:0.33),lg=G(p.chorus*0.006);l.connect(lg);lg.connect(d.delayTime);chSplit.connect(d,c);d.connect(chMerge,0,1-c);chLfos.push({l,lg})});
   chMerge.connect(chWet);chWet.connect(chSum);
@@ -430,7 +432,7 @@ function makeEngine(ctx,out,p,users){
   let conv=null,convG=null,revKey="";
   function buildRev(t){
     if(p.revType===revKey)return;revKey=p.revType;
-    if(conv){const oc=conv,og=convG;og.gain.setTargetAtTime(0,t,0.4);setTimeout(()=>{try{revSend.disconnect(oc);ambSendRev.disconnect(oc)}catch(e){}},3000)}
+    if(conv){const oc=conv,og=convG;try{revSend.disconnect(oc);ambSendRev.disconnect(oc)}catch(e){}og.gain.setTargetAtTime(0,t,0.4);setTimeout(()=>{try{oc.disconnect();og.disconnect()}catch(e){}},3000)}
     conv=ctx.createConvolver();conv.normalize=true;conv.buffer=reverbBuffer(ctx,p.revType);
     convG=G(0);convG.gain.setTargetAtTime(1,t,0.4);
     revSend.connect(conv);ambSendRev.connect(conv);conv.connect(convG);convG.connect(comp);
@@ -441,9 +443,18 @@ function makeEngine(ctx,out,p,users){
   const dL=ctx.createDelay(2),dR=ctx.createDelay(2);dL.delayTime.value=p.echoTime;dR.delayTime.value=p.echoTime;
   const fbL=G(p.echoFb),fbR=G(p.echoFb),lpL=ctx.createBiquadFilter(),lpR=ctx.createBiquadFilter();lpL.frequency.value=lpR.frequency.value=3200;
   const eMerge=ctx.createChannelMerger(2),echoOut=G(p.echoMix*0.75);
-  rot.connect(echoIn);echoIn.connect(dL);dL.connect(eMerge,0,0);dL.connect(lpL);lpL.connect(fbL);fbL.connect(dR);
+  echoIn.connect(dL);dL.connect(eMerge,0,0);dL.connect(lpL);lpL.connect(fbL);fbL.connect(dR);
   dR.connect(eMerge,0,1);dR.connect(lpR);lpR.connect(fbR);fbR.connect(dL);
   eMerge.connect(echoOut);echoOut.connect(comp);echoOut.connect(revSend);
+
+  const links={};
+  function link(a,b,on,k){if(links[k]===on)return;links[k]=on;try{on?a.connect(b):a.disconnect(b)}catch(err){}}
+  function route(){
+    link(musicBus,shaper,p.warmth>0,"warm");
+    link(sweepF,chSplit,p.chorus>0,"chorus");
+    link(rot,echoIn,p.echoMix>0,"echo");
+  }
+  route();
 
   /* --- battimento binaurale: asciutto, fuori dagli effetti --- */
   const merger=ctx.createChannelMerger(2),c0=effCarrier(p);
@@ -477,6 +488,7 @@ function makeEngine(ctx,out,p,users){
         const wv=tm==="organo"?W.odd:W.warm,gains=tm==="organo"?[0.5,0.4,0.5]:[0.55,0.25,0.55],pans=tm==="coro"?[-0.8,0,0.8]:[-1,0,1];
         let vib=null;if(tm==="coro"){vib=G(5);const vl=osc("sine",4.6+0.2*i);vl.connect(vib);nodes.push(vl)}
         [-1,0,1].forEach((dir,k)=>{
+          if(LIGHT&&dir===0)return;
           const o=osc(wv,f),extra=(k-1)*0.7*i;o.detune.value=dir*spread(p)+extra;
           if(vib)vib.connect(o.detune);
           const og=G(gains[k]);o.connect(og);og.connect(pan(pans[k]));nodes.push(o);
@@ -502,7 +514,7 @@ function makeEngine(ctx,out,p,users){
       const k=[c.on,p.root,p.mode,c.timbre,c.oct,p.tuning,p.prog,ch[0],ch[1]].join("|");
       if(k===key&&!force)return;key=k;
       const old=voices;voices=[];detuners=[];
-      for(const v of old){v.g.gain.cancelScheduledValues(t);v.g.gain.setTargetAtTime(0,t,1.0);v.nodes.forEach(n=>{try{n.stop(t+6)}catch(e){}})}
+      for(const v of old){v.g.gain.cancelScheduledValues(t);v.g.gain.setTargetAtTime(0,t,0.6);v.nodes.forEach(n=>{try{n.stop(t+3)}catch(e){}})}
       if(!c.on)return; // spento: nessuna voce, niente calcolo inutile
       const steps=MODES[ch[1]],base=rootHz(p.root,p)*(OCT[c.timbre]||1)*Math.pow(2,(c.oct+ch[0])/12),weights=[1,0.6,0.42,0.3,0.25];
       const norm=0.55/steps.reduce((sm,_,i)=>sm+(weights[i]||0.25),0);
@@ -691,6 +703,12 @@ function makeEngine(ctx,out,p,users){
       o.frequency.setValueAtTime(f0,ti);o.frequency.exponentialRampToValueAtTime(400+er()*300,ti+d);
       g.gain.setValueAtTime(0,ti);g.gain.linearRampToValueAtTime(0.08,ti+0.4);g.gain.setValueAtTime(0.08,ti+d*0.6);g.gain.linearRampToValueAtTime(0,ti+d);
       o.connect(g);g.connect(pn);pn.connect(n.g);o.start(ti);o.stop(ti+d+0.05)}}
+  function dropAmb(k,t){
+    const n=ambNodes[k];if(!n)return;delete ambNodes[k];
+    n.g.gain.cancelScheduledValues(t);n.g.gain.setTargetAtTime(0,t,0.04);
+    (n.stops||[]).forEach(s=>{try{s.stop(t+0.3)}catch(e){}});
+    setTimeout(()=>{try{n.g.disconnect()}catch(e){}},600);
+  }
   function heart(t){const n=ambNodes.cuore;if(!n)return;
     [[0,1],[0.28,0.7]].forEach(([d,a])=>{const ti=t+d,o=osc("sine",62),g=ctx.createGain();o.frequency.setValueAtTime(62,ti);o.frequency.exponentialRampToValueAtTime(38,ti+0.12);
       g.gain.setValueAtTime(0,ti);g.gain.linearRampToValueAtTime(a*0.9,ti+0.012);g.gain.exponentialRampToValueAtTime(0.001,ti+0.2);o.connect(g);g.connect(n.g);o.start(ti);o.stop(ti+0.22)})}
@@ -758,8 +776,9 @@ function makeEngine(ctx,out,p,users){
     set(trem.gain,1-p.trem*0.5);set(trG.gain,p.trem*0.5);set(trL.frequency,pulseRate(p.beat));
     set(roG.gain,p.rotate*0.95);set(roL.frequency,rotHz(p.rotRate));
     set(revSend.gain,p.space*0.8);set(ambSendRev.gain,p.space*0.35);buildRev(now());
-    set(dL.delayTime,p.echoTime);set(dR.delayTime,p.echoTime);set(fbL.gain,p.echoFb);set(fbR.gain,p.echoFb);set(echoOut.gain,p.echoMix*0.75);
-    Object.keys(AMB0).forEach(k=>{if(p.amb[k]>0&&!ambNodes[k])buildAmb(k,now());if(ambNodes[k])setFast(ambNodes[k].g.gain,p.amb[k]*CAL[k])});
+    set(dL.delayTime,p.echoTime);set(dR.delayTime,p.echoTime);set(fbL.gain,p.echoMix>0?p.echoFb:0);set(fbR.gain,p.echoMix>0?p.echoFb:0);set(echoOut.gain,p.echoMix*0.75);
+    Object.keys(AMB0).forEach(k=>{if(p.amb[k]>0&&!ambNodes[k])buildAmb(k,now());if(!ambNodes[k])return;if(p.amb[k]>0)setFast(ambNodes[k].g.gain,p.amb[k]*CAL[k]);else dropAmb(k,now())});
+    route();if(p.echoMix===0){set(fbL.gain,0);set(fbR.gain,0)}
     if(p.prog==="off"||prevProg!==p.prog)chordIdx=0;
     pad1.update();pad2.update();followChord(now());
     userNodes.forEach((u,i)=>{if(u&&users[i])set(u.g.gain,users[i].on?users[i].vol*0.8:0)});
@@ -951,7 +970,8 @@ async function play(){
   const AC=window.AudioContext||window.webkitAudioContext;
   if(!AC){statusEl.textContent="Questo browser non supporta l'audio web. Prova Chrome o Edge.";return}
   try{
-    ctx=new AC();
+    try{LIGHT=!!(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches)}catch(e){LIGHT=false}
+    try{ctx=new AC({latencyHint:"playback"})}catch(e){ctx=new AC()}
     try{await ctx.resume()}catch(e){}
     master=ctx.createGain();master.gain.value=0;master.connect(ctx.destination);
     eng=makeEngine(ctx,master,clone(P),[]);
@@ -963,6 +983,8 @@ async function play(){
     return;
   }
   master.gain.setTargetAtTime(P.master,ctx.currentTime,0.6);
+  const myCtx=ctx;
+  myCtx.onstatechange=()=>{if(ctx===myCtx&&myCtx.state!=="running"&&myCtx.state!=="closed"&&document.visibilityState==="visible"){myCtx.resume().catch(()=>{})}};
   startAt=performance.now();sleepFired=false;
   showIcon(true);
   statusEl.textContent="In ascolto";
@@ -986,6 +1008,7 @@ function updateClock(){
   if(lim&&!sleepFired&&s>=lim*60){sleepFired=true;statusEl.textContent="Spegnimento dolce in corso";if(ctx)master.gain.setTargetAtTime(0,ctx.currentTime,6);setTimeout(stop,22000)}
 }
 $("play").addEventListener("click",()=>{ctx?stop():play()});
+document.addEventListener("visibilitychange",()=>{if(ctx&&document.visibilityState==="visible"&&ctx.state!=="running"){ctx.resume().catch(()=>{})}});
 
 /* ---------- visualizzazione ---------- */
 const cv=$("viz"),g2=cv.getContext("2d");
