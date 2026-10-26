@@ -62,6 +62,19 @@ canvas#viz{width:100%;height:150px;display:block;background:var(--panel);border:
 .chip small{font-family:var(--f-mono);font-weight:400;color:var(--muted);font-size:.76rem}
 .chip:hover{border-color:var(--muted)}
 .chip[aria-pressed="true"]{border-color:var(--right);background:color-mix(in srgb, var(--right) 14%, var(--raise))}
+.mine{display:flex;flex-direction:column;gap:8px}
+.mine .sub{font-size:.82rem}
+.chip.add{border-style:dashed;color:var(--muted)}
+.chip.add:hover{color:var(--fg)}
+.chip.add:disabled{opacity:.5;cursor:not-allowed}
+.mychip{display:inline-flex;align-items:stretch}
+.mychip .chip{border-top-right-radius:0;border-bottom-right-radius:0;border-right:none}
+.mychip .x{font:inherit;font-size:.85rem;border:1px solid var(--line);border-left:1px solid color-mix(in srgb, var(--line) 50%, transparent);background:var(--raise);color:var(--muted);border-radius:0 999px 999px 0;padding:0 11px;cursor:pointer;white-space:nowrap}
+.mychip .x:hover{color:var(--fg)}
+.mychip .x[data-armed="1"]{color:var(--bg);background:var(--right);border-color:var(--right)}
+.mychip .chip[aria-pressed="true"] + .x{border-color:var(--right)}
+.saveform{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.saveform input{flex:1 1 240px;width:auto}
 
 .tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line)}
 .tab{font:inherit;font-family:var(--f-display);font-weight:600;font-size:1rem;background:none;border:none;color:var(--muted);padding:10px 14px;cursor:pointer;white-space:nowrap;box-shadow:inset 0 -2px 0 transparent}
@@ -183,7 +196,7 @@ select,input[type=text]{font:inherit;color:var(--fg);background:var(--raise);bor
             <li><strong>Per prudenza, chiedi al medico prima di usarla</strong> se soffri di epilessia o di altre condizioni neurologiche o cardiache, se porti un pacemaker o se sei in gravidanza.</li>
             <li><strong>Minori:</strong> possono usarla solo con la supervisione di un adulto.</li>
             <li><strong>Uso libero e senza garanzie.</strong> La console è gratuita e fornita così com'è: la usi sotto la tua responsabilità.</li>
-            <li><strong>Privacy:</strong> questa console non raccoglie dati, non usa cookie e non invia nulla. Ricorda le tue impostazioni solo nel tuo browser. Il servizio che ospita la pagina può registrare dati tecnici di accesso, come l'indirizzo IP, secondo la propria informativa.</li>
+            <li><strong>Privacy:</strong> questa console non raccoglie dati, non usa cookie e non invia nulla. Ricorda le tue impostazioni e i suoni che salvi solo nel tuo browser. Il servizio che ospita la pagina può registrare dati tecnici di accesso, come l'indirizzo IP, secondo la propria informativa.</li>
             <li><strong>Chi l'ha creata:</strong> Alessandro Gurini, con Claude di Anthropic.</li>
           </ul>
         </details>
@@ -204,6 +217,16 @@ select,input[type=text]{font:inherit;color:var(--fg);background:var(--raise);bor
 
 
   <div class="presets" role="group" aria-label="Preset" id="presets"><span class="label">Parti da</span></div>
+
+  <section class="mine" aria-labelledby="h-mine">
+    <div class="presets" id="mine"><span class="label" id="h-mine">I miei suoni</span><span id="mineList" class="presets"></span><button class="chip add" id="saveOpen">＋ Salva questo suono</button></div>
+    <div class="saveform" id="saveForm" hidden>
+      <input type="text" id="saveName" maxlength="40" placeholder="Nome del suono, per esempio Sera sul mare" aria-label="Nome del suono da salvare">
+      <button class="btn primary" id="saveDo">Salva</button>
+      <button class="btn" id="saveCancel">Annulla</button>
+    </div>
+    <p class="sub muted" id="mineNote">Salvati in questo browser. Per portarli su un altro dispositivo usa Condividi.</p>
+  </section>
 
   <div class="tabs" role="tablist" aria-label="Sezioni della console">
     <button class="tab" role="tab" id="tab-suono" aria-controls="p-suono" data-tab="suono">Suono</button>
@@ -877,6 +900,7 @@ function readouts(){
   const nFx=["echoMix","chorus","rotate","trem","sweep","warmth"].filter(k=>P[k]>0).length;
   $("cntFx").textContent=nFx?String(nFx):"";
   $("code").value=encode();
+  markMine();
   document.querySelectorAll("[data-preset]").forEach(btn=>{const pr=PRESETS[btn.dataset.preset].p;
     btn.setAttribute("aria-pressed",String(Object.keys(pr).every(k=>JSON.stringify(pr[k])===JSON.stringify(P[k]))))});
   if(!running)drawViz(0);
@@ -996,6 +1020,53 @@ function frame(ts){drawViz((ts-tv0)/1000);raf=requestAnimationFrame(frame)}
 function startViz(){running=true;if(reduce){drawViz(0);return}tv0=performance.now();raf=requestAnimationFrame(frame)}
 function stopViz(){running=false;cancelAnimationFrame(raf);drawViz(0)}
 window.addEventListener("resize",()=>{sizeCanvas();if(!running||reduce)drawViz(0)});
+
+/* ---------- i miei suoni: salvati nella memoria del browser ---------- */
+const MINE_KEY="cb-mine-1",MINE_MAX=30;
+let MINE=[];
+try{const s=localStorage.getItem(MINE_KEY);if(s){const a=JSON.parse(s);if(Array.isArray(a))MINE=a.filter(m=>m&&typeof m.name==="string"&&m.p&&typeof m.p==="object").slice(0,MINE_MAX)}}catch(e){}
+let storageOk=true;
+function saveMine(){try{localStorage.setItem(MINE_KEY,JSON.stringify(MINE));storageOk=true}catch(e){storageOk=false}}
+const soundOf=q=>{const o=clone(q);delete o.master;return o};
+function markMine(){
+  const cur=JSON.stringify(soundOf(P));
+  document.querySelectorAll("[data-load]").forEach(b=>{const m=MINE.find(x=>x.id===b.dataset.load);b.setAttribute("aria-pressed",String(!!m&&JSON.stringify(m.p)===cur))});
+}
+function renderMine(){
+  $("mineList").innerHTML=MINE.map(m=>'<span class="mychip"><button class="chip" data-load="'+esc(m.id)+'">'+esc(m.name)+'</button><button class="x" data-del="'+esc(m.id)+'" aria-label="Elimina '+esc(m.name)+'">×</button></span>').join("");
+  $("saveOpen").disabled=MINE.length>=MINE_MAX;
+  $("mineNote").textContent=!storageOk?"Questo browser non permette di salvare (forse sei in incognito): usa il codice di Condividi per conservare i tuoi suoni.":
+    (MINE.length>=MINE_MAX?"Hai raggiunto "+MINE_MAX+" suoni: eliminane uno per salvarne altri. ":MINE.length?"":"Ancora nessun suono salvato. ")+"Salvati in questo browser. Per portarli su un altro dispositivo usa Condividi.";
+  markMine();
+}
+$("mineList").addEventListener("click",ev=>{
+  const ld=ev.target.closest("[data-load]"),dl=ev.target.closest("[data-del]");
+  if(ld){const m=MINE.find(x=>x.id===ld.dataset.load);if(!m)return;
+    const np=clone(DEF);sanitize(m.p,np);np.master=P.master;P=np;render();save();if(eng)eng.update(clone(P));return}
+  if(dl){
+    if(dl.dataset.armed!=="1"){dl.dataset.armed="1";dl.textContent="Elimina?";setTimeout(()=>{if(dl.isConnected){dl.dataset.armed="";dl.textContent="×"}},4000);return}
+    MINE=MINE.filter(x=>x.id!==dl.dataset.del);saveMine();renderMine();
+  }
+});
+function openSave(){
+  if(MINE.length>=MINE_MAX){renderMine();return}
+  $("saveForm").hidden=false;$("saveOpen").hidden=true;$("saveName").value="";$("saveName").focus();
+}
+function closeSave(){$("saveForm").hidden=true;$("saveOpen").hidden=false}
+function doSave(){
+  const name=$("saveName").value.trim().replace(/\s+/g," ");
+  if(!name){$("saveName").focus();$("mineNote").textContent="Scrivi un nome per il suono, poi premi Salva.";return}
+  const ex=MINE.find(x=>x.name.toLowerCase()===name.toLowerCase());
+  if(ex)ex.p=soundOf(P);
+  else MINE.push({id:"s"+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36),name,p:soundOf(P)});
+  saveMine();closeSave();renderMine();
+  if(storageOk)$("mineNote").textContent=(ex?"Aggiornato: ":"Salvato: ")+name+". Lo ritrovi qui anche dopo aver chiuso il browser.";
+}
+$("saveOpen").addEventListener("click",openSave);
+$("saveCancel").addEventListener("click",closeSave);
+$("saveDo").addEventListener("click",doSave);
+$("saveName").addEventListener("keydown",ev=>{if(ev.key==="Enter"){ev.preventDefault();doSave()}else if(ev.key==="Escape")closeSave()});
+renderMine();
 
 sizeCanvas();render();
 
