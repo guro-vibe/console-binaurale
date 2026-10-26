@@ -757,7 +757,8 @@ function makeEngine(ctx,out,p,users){
   };
   E.live=function(){
     timer=setInterval(()=>{
-      const h=ctx.currentTime+1.5;
+      const hidden=typeof document!=="undefined"&&document.visibilityState==="hidden";
+      const h=ctx.currentTime+(hidden?12:1.5);
       for(const s of scheds){let guard=0;while(s.next<h&&guard++<60){if(s.next>=ctx.currentTime-0.05&&s.active())s.fn(s.next);s.next+=s.gap()}}
     },250);
   };
@@ -922,7 +923,7 @@ function readouts(){
     btn.setAttribute("aria-pressed",String(Object.keys(pr).every(k=>JSON.stringify(pr[k])===JSON.stringify(P[k]))))});
   if(!running)drawViz(0);
 }
-function changed(){readouts();save();if(eng)eng.update(clone(P))}
+function changed(){readouts();save();if(eng)eng.update(clone(P));if(ctx)updateMeta()}
 document.querySelectorAll("[data-k]").forEach(el=>{
   el.addEventListener(el.type==="range"?"input":"change",()=>{
     const k=el.dataset.k;
@@ -936,7 +937,7 @@ document.querySelectorAll("[data-amb]").forEach(el=>el.addEventListener("input",
 $("ambZero").addEventListener("click",()=>{P.amb=Object.assign({},AMB0);render();changed()});
 $("master").addEventListener("input",e=>{P.master=parseFloat(e.target.value);if(ctx&&master)master.gain.setTargetAtTime(P.master,ctx.currentTime,0.08);save()});
 document.querySelectorAll("[data-preset]").forEach(btn=>btn.addEventListener("click",()=>{
-  const m=P.master;P=clone(PRESETS[btn.dataset.preset].p);P.master=m;render();save();if(eng)eng.update(clone(P));
+  const m=P.master;P=clone(PRESETS[btn.dataset.preset].p);P.master=m;render();save();if(eng)eng.update(clone(P));if(ctx)updateMeta();
 }));
 
 
@@ -960,6 +961,47 @@ $("applyBtn").addEventListener("click",()=>{
 /* ---------- ascolto dal vivo ---------- */
 let ctx=null,eng=null,master=null,startAt=0,tick=null,sleepFired=false;
 const statusEl=$("status");
+/* ---------- ascolto in sottofondo (schermo spento, altre app) ---------- */
+const UA=navigator.userAgent||"";
+const IS_IOS=/iPad|iPhone|iPod/.test(UA)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const IS_ANDROID=/Android/i.test(UA);
+let bgEl=null,bgDest=null;
+function routeOutput(){
+  /* Android: il suono passa dal lettore multimediale del telefono, che resta attivo a schermo spento */
+  if(IS_ANDROID&&ctx.createMediaStreamDestination){
+    try{
+      bgDest=ctx.createMediaStreamDestination();master.connect(bgDest);
+      if(!bgEl){bgEl=document.createElement("audio");bgEl.setAttribute("playsinline","");bgEl.hidden=true;document.body.appendChild(bgEl)}
+      bgEl.srcObject=bgDest.stream;
+      const pr=bgEl.play();
+      if(pr&&pr.catch)pr.catch(()=>{try{master.disconnect(bgDest)}catch(e){}bgDest=null;master.connect(ctx.destination)});
+      return;
+    }catch(e){bgDest=null}
+  }
+  master.connect(ctx.destination);
+}
+function currentName(){
+  const pr=document.querySelector('[data-preset][aria-pressed="true"]');
+  if(pr&&PRESETS[pr.dataset.preset])return PRESETS[pr.dataset.preset].label;
+  const my=document.querySelector('[data-load][aria-pressed="true"]');
+  if(my)return my.textContent;
+  return "Suono personalizzato";
+}
+function updateMeta(){
+  if(!("mediaSession" in navigator)||typeof MediaMetadata==="undefined")return;
+  try{navigator.mediaSession.metadata=new MediaMetadata({title:currentName(),artist:"Console Binaurale"})}catch(e){}
+}
+function mediaSession(playing){
+  if(!("mediaSession" in navigator))return;
+  try{
+    navigator.mediaSession.playbackState=playing?"playing":"paused";
+    if(playing)updateMeta();
+    navigator.mediaSession.setActionHandler("play",()=>{if(!ctx)play()});
+    navigator.mediaSession.setActionHandler("pause",()=>{if(ctx)stop()});
+    try{navigator.mediaSession.setActionHandler("stop",()=>{if(ctx)stop()})}catch(e){}
+  }catch(e){}
+}
+
 /* le icone sono SVG: si mostrano e nascondono con lo stile, la proprietà hidden non vale per loro */
 function showIcon(playing){
   $("icoPlay").style.display=playing?"none":"block";
@@ -971,9 +1013,11 @@ async function play(){
   if(!AC){statusEl.textContent="Questo browser non supporta l'audio web. Prova Chrome o Edge.";return}
   try{
     try{LIGHT=!!(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches)}catch(e){LIGHT=false}
+    /* iPhone (iOS 17.5 e successivi): sessione audio "riproduzione", che continua a schermo spento */
+    try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
     try{ctx=new AC({latencyHint:"playback"})}catch(e){ctx=new AC()}
     try{await ctx.resume()}catch(e){}
-    master=ctx.createGain();master.gain.value=0;master.connect(ctx.destination);
+    master=ctx.createGain();master.gain.value=0;routeOutput();
     eng=makeEngine(ctx,master,clone(P),[]);
     eng.start(ctx.currentTime+0.05);eng.live();
   }catch(err){
@@ -986,7 +1030,7 @@ async function play(){
   const myCtx=ctx;
   myCtx.onstatechange=()=>{if(ctx===myCtx&&myCtx.state!=="running"&&myCtx.state!=="closed"&&document.visibilityState==="visible"){myCtx.resume().catch(()=>{})}};
   startAt=performance.now();sleepFired=false;
-  showIcon(true);
+  showIcon(true);mediaSession(true);
   statusEl.textContent="In ascolto";
   tick=setInterval(updateClock,500);
   startViz();
@@ -997,7 +1041,8 @@ function stop(){
   try{master.gain.setTargetAtTime(0,c.currentTime,0.15)}catch(err){}
   setTimeout(()=>{try{e.dispose();c.close()}catch(err){}},700);
   ctx=null;eng=null;clearInterval(tick);
-  showIcon(false);
+  showIcon(false);mediaSession(false);
+  if(bgEl){try{bgEl.pause();bgEl.srcObject=null}catch(err){}}bgDest=null;
   statusEl.textContent="In pausa";
   stopViz();
 }
