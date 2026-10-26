@@ -55,17 +55,17 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .trow .ctl{display:flex;align-items:center;gap:10px;min-width:0}
 .trow .ctl input[type=range]{width:150px}
 .status{font-size:.88rem}
-canvas#viz{width:100%;height:150px;display:block;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+canvas#viz{width:100%;height:76px;display:block;background:var(--panel);border:1px solid var(--line);border-radius:14px}
 
-.presets{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.chip{font:inherit;font-weight:600;font-size:.88rem;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--raise);color:var(--fg);cursor:pointer;display:inline-flex;gap:8px;align-items:baseline}
-.chip small{font-family:var(--f-mono);font-weight:400;color:var(--muted);font-size:.76rem}
+.presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{font:inherit;font-weight:600;font-size:.78rem;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--raise);color:var(--fg);cursor:pointer;display:inline-flex;gap:6px;align-items:baseline;line-height:1.4}
+.chip small{font-family:var(--f-mono);font-weight:400;color:var(--muted);font-size:.7rem}
 .chip:hover{border-color:var(--muted)}
 .chip[aria-pressed="true"]{border-color:var(--right);background:color-mix(in srgb, var(--right) 14%, var(--raise))}
 .mine{display:flex;flex-direction:column;gap:8px}
 .mine .sub{font-size:.82rem}
-.chip.add{border-style:dashed;color:var(--muted)}
-.chip.add:hover{color:var(--fg)}
+.chip.add{background:var(--left);border-color:var(--left);color:#0f1a20}
+.chip.add:hover{filter:brightness(1.08)}
 .chip.add:disabled{opacity:.5;cursor:not-allowed}
 .mychip{display:inline-flex;align-items:stretch}
 .mychip .chip{border-top-right-radius:0;border-bottom-right-radius:0;border-right:none}
@@ -197,7 +197,7 @@ select,input[type=text]{font:inherit;color:var(--fg);background:var(--raise);bor
             <li><strong>Minori:</strong> possono usarla solo con la supervisione di un adulto.</li>
             <li><strong>Uso libero e senza garanzie.</strong> La console è gratuita e fornita così com'è: la usi sotto la tua responsabilità.</li>
             <li><strong>Privacy:</strong> questa console non raccoglie dati, non usa cookie e non invia nulla. Ricorda le tue impostazioni e i suoni che salvi solo nel tuo browser. Il servizio che ospita la pagina può registrare dati tecnici di accesso, come l'indirizzo IP, secondo la propria informativa.</li>
-            <li><strong>Chi l'ha creata:</strong> Alessandro Gurini, con Claude di Anthropic.</li>
+            <li><strong>Chi l'ha creata e diritti:</strong> © 2026 Alessandro Gurini, creata con Claude di Anthropic. Puoi usare liberamente la console da questo link. Non è consentito copiarla, modificarla o ripubblicarla altrove senza autorizzazione.</li>
           </ul>
         </details>
       </div>
@@ -218,7 +218,7 @@ select,input[type=text]{font:inherit;color:var(--fg);background:var(--raise);bor
 
   <div class="presets" role="group" aria-label="Preset" id="presets"><span class="label">Parti da</span></div>
 
-  <section class="mine" aria-labelledby="h-mine">
+  <section class="mod mine" aria-labelledby="h-mine">
     <div class="presets" id="mine"><span class="label" id="h-mine">I miei suoni</span><span id="mineList" class="presets"></span><button class="chip add" id="saveOpen">＋ Salva questo suono</button></div>
     <div class="saveform" id="saveForm" hidden>
       <input type="text" id="saveName" maxlength="40" placeholder="Nome del suono, per esempio Sera sul mare" aria-label="Nome del suono da salvare">
@@ -284,13 +284,11 @@ const PRESETS={
   foresta:{label:"Foresta",p:mk({beat:9,carrier:196,timbre:"coro",root:7,mode:"maj",prog:"lenta",bright:0.4,motion:0.4,padVol:0.45,melOn:true,melInst:"handpan",melDensity:0.35,melVol:0.35,amb:{uccelli:0.2,ruscello:0.2},space:0.35})},
   campane:{label:"Campane tibetane",p:mk({beat:5,carrier:220,timbre:"campana",root:9,mode:"one",bright:0.4,motion:0.4,padVol:0.55,bellsOn:true,bellType:"tibetana",bellEvery:18,bellVol:0.4,revType:"cattedrale",space:0.5,echoMix:0.2,echoTime:0.8})},
   spazio:{label:"Spazio infinito",p:mk({beat:3,carrier:165,timbre:"cristallo",root:4,mode:"sus",prog:"lenta",bright:0.4,motion:0.5,padVol:0.5,subOn:true,subVol:0.2,revType:"infinito",space:0.6,echoMix:0.35,echoTime:0.9,echoFb:0.55,rotate:0.5,rotRate:0.2,sweep:0.4})},
-  camino:{label:"Notte al camino",p:mk({beat:3,carrier:196,root:7,mode:"fifth",bright:0.35,padVol:0.5,melOn:true,melInst:"piano",melDensity:0.2,melVol:0.3,amb:{fuoco:0.3,grilli:0.12},revType:"stanza",space:0.3,warmth:0.4})},
   carillon:{label:"Carillon dei sogni",p:mk({beat:3,carrier:196,lock:true,timbre:"morbido",root:7,mode:"maj",prog:"lenta",bright:0.3,motion:0.3,padVol:0.45,pad2On:true,pad2Timbre:"cristallo",pad2Oct:0,pad2Vol:0.2,arpOn:true,arpInst:"carillon",arpPattern:"sugiu",arpSpeed:0.25,arpVol:0.3,amb:{mare:0.2},revType:"cattedrale",space:0.45,echoMix:0.15,echoTime:0.75})},
   sonno:{label:"Sonno profondo",p:mk({beat:2.5,carrier:140,toneVol:0.3,lock:false,timbre:"morbido",root:2,mode:"sus",bright:0.15,motion:0.15,padVol:0.45,amb:{mare:0.3},space:0.3})},
   meditazione:{label:"Meditazione",p:mk({beat:6,carrier:180,toneVol:0.35,lock:false,timbre:"morbido",root:9,mode:"min",bright:0.3,motion:0.3,padVol:0.5,bellsOn:true,bellEvery:22,bellVol:0.35,space:0.4})},
   infinito:{label:"Viaggio nell'infinito",p:mk({beat:3,carrier:165,timbre:"cristallo",root:4,mode:"sus",prog:"lenta",bright:0.4,motion:0.5,padVol:0.4,subOn:true,subVol:0.15,amb:{spirale:0.35,stelle:0.25,ventoSolare:0.12},revType:"infinito",space:0.6,echoMix:0.3,echoTime:1.0,echoFb:0.5,rotate:0.3,rotRate:0.15})},
   buconero:{label:"Buco nero",p:mk({beat:1.5,carrier:147,root:2,mode:"one",bright:0.25,padVol:0.55,subOn:true,subVol:0.25,pulse:0.3,amb:{bucoNero:0.35,radio:0.1},revType:"cattedrale",space:0.5,warmth:0.3})},
-  nebulosa:{label:"Nebulosa",p:mk({beat:6,carrier:220,timbre:"coro",root:9,mode:"min",prog:"lenta",bright:0.35,motion:0.45,padVol:0.45,amb:{voci:0.25,respiro:0.25,stelle:0.18},revType:"infinito",space:0.55,chorus:0.4,sweep:0.3})},
   focus:{label:"Concentrazione",p:mk({beat:16,carrier:260,toneVol:0.3,lock:false,timbre:"morbido",root:7,mode:"sus",bright:0.55,motion:0.2,padVol:0.35,amb:{marrone:0.25},revType:"stanza",space:0.15})}
 };
 
@@ -999,21 +997,23 @@ function sizeCanvas(){const r=cv.getBoundingClientRect(),d=window.devicePixelRat
 function drawViz(t){
   const w=cv.clientWidth,h=cv.clientHeight;if(!w)return;
   g2.clearRect(0,0,w,h);
-  const env=1+Math.min(P.beat,30)/30*9,fL=26,fR=fL+env,shift=t*0.05;
-  const lanes=[h*0.2,h*0.47,h*0.78],amp=h*0.08,ec=effCarrier(P);
-  g2.font="500 10px "+css.getPropertyValue("--f-mono");g2.textBaseline="bottom";g2.fillStyle=C.muted;
-  g2.fillText("SINISTRO  "+(ec-P.beat/2).toFixed(1)+" Hz",12,lanes[0]-amp-4);
-  g2.fillText("DESTRO  "+(ec+P.beat/2).toFixed(1)+" Hz",12,lanes[1]-amp-4);
-  g2.fillText("PERCEPITO  "+P.beat.toFixed(1)+" Hz",12,lanes[2]-amp*1.6-4);
-  const N=Math.max(200,Math.floor(w*1.5));
-  function wave(y,f,col){g2.strokeStyle=col;g2.lineWidth=1.4;g2.beginPath();for(let i=0;i<=N;i++){const x=i/N,v=Math.sin(2*Math.PI*f*(x+shift));i?g2.lineTo(x*w,y-v*amp):g2.moveTo(x*w,y-v*amp)}g2.stroke()}
+  const env=1+Math.min(P.beat,30)/30*9,fL=26,fR=fL+env,shift=t*0.05,ec=effCarrier(P);
+  /* etichette in una colonna a sinistra, onde nello spazio restante */
+  const x0=Math.min(150,w*0.36),W=w-x0-10,lanes=[h*0.2,h*0.5,h*0.8],amp=h*0.075;
+  g2.font="500 10px "+css.getPropertyValue("--f-mono");g2.textBaseline="middle";g2.fillStyle=C.muted;
+  g2.fillText("SX  "+(ec-P.beat/2).toFixed(1)+" Hz",12,lanes[0]);
+  g2.fillText("DX  "+(ec+P.beat/2).toFixed(1)+" Hz",12,lanes[1]);
+  g2.fillText("PERCEPITO "+P.beat.toFixed(1)+" Hz",12,lanes[2]);
+  const N=Math.max(200,Math.floor(W*1.5));
+  function wave(y,f,col){g2.strokeStyle=col;g2.lineWidth=1.3;g2.beginPath();for(let i=0;i<=N;i++){const x=i/N,v=Math.sin(2*Math.PI*f*(x+shift));const X=x0+x*W;i?g2.lineTo(X,y-v*amp):g2.moveTo(X,y-v*amp)}g2.stroke()}
   wave(lanes[0],fL,C.left);wave(lanes[1],fR,C.right);
+  const a2=amp*1.4;
   g2.beginPath();
-  for(let i=0;i<=N;i++){const x=i/N,e=Math.abs(Math.cos(Math.PI*(fR-fL)*(x+shift)));i?g2.lineTo(x*w,lanes[2]-e*amp*1.6):g2.moveTo(x*w,lanes[2]-e*amp*1.6)}
-  for(let i=N;i>=0;i--){const x=i/N,e=Math.abs(Math.cos(Math.PI*(fR-fL)*(x+shift)));g2.lineTo(x*w,lanes[2]+e*amp*1.6)}
-  g2.closePath();g2.fillStyle=C.fg;g2.globalAlpha=0.12;g2.fill();g2.globalAlpha=1;
+  for(let i=0;i<=N;i++){const x=i/N,e=Math.abs(Math.cos(Math.PI*(fR-fL)*(x+shift)));i?g2.lineTo(x0+x*W,lanes[2]-e*a2):g2.moveTo(x0+x*W,lanes[2]-e*a2)}
+  for(let i=N;i>=0;i--){const x=i/N,e=Math.abs(Math.cos(Math.PI*(fR-fL)*(x+shift)));g2.lineTo(x0+x*W,lanes[2]+e*a2)}
+  g2.closePath();g2.fillStyle=C.fg;g2.globalAlpha=0.14;g2.fill();g2.globalAlpha=1;
   g2.strokeStyle=C.fg;g2.lineWidth=1;g2.beginPath();
-  for(let i=0;i<=N;i++){const x=i/N,v=(Math.sin(2*Math.PI*fL*(x+shift))+Math.sin(2*Math.PI*fR*(x+shift)))/2;i?g2.lineTo(x*w,lanes[2]-v*amp*1.6):g2.moveTo(x*w,lanes[2]-v*amp*1.6)}
+  for(let i=0;i<=N;i++){const x=i/N,v=(Math.sin(2*Math.PI*fL*(x+shift))+Math.sin(2*Math.PI*fR*(x+shift)))/2;i?g2.lineTo(x0+x*W,lanes[2]-v*a2):g2.moveTo(x0+x*W,lanes[2]-v*a2)}
   g2.stroke();
 }
 function frame(ts){drawViz((ts-tv0)/1000);raf=requestAnimationFrame(frame)}
