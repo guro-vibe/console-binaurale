@@ -391,6 +391,8 @@ function waves(ctx){
   for(let n=1;n<=N;n++){im[n]=1/Math.pow(n,1.15);im2[n]=n%2?1/n:(n===2?0.25:0)}
   const w={warm:ctx.createPeriodicWave(re,im),odd:ctx.createPeriodicWave(re,im2)};WAVES.set(ctx,w);return w;
 }
+function kRate(param){try{param.automationRate="k-rate"}catch(e){}return param}
+function safeCurve(){const n=4096,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1,a=Math.abs(x);c[i]=a<0.7?x:Math.sign(x)*(0.7+0.3*Math.tanh((a-0.7)/0.3))}return c}
 function shaperCurve(){const n=2048,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(2.2*x)/Math.tanh(2.2)}return c}
 
 /* ---------- motore audio (uguale per ascolto ed esportazione) ---------- */
@@ -405,7 +407,8 @@ function makeEngine(ctx,out,p,users){
 
   const comp=ctx.createDynamicsCompressor();
   comp.threshold.value=-8;comp.ratio.value=4;comp.attack.value=0.01;comp.release.value=0.4;comp.knee.value=6;
-  comp.connect(out);
+  const trim=G(0.85),safe=ctx.createWaveShaper();safe.curve=safeCurve();safe.oversample="none";
+  comp.connect(trim);trim.connect(safe);safe.connect(out);
 
   /* --- catena effetti sulla musica --- */
   const musicBus=G(1);
@@ -415,7 +418,7 @@ function makeEngine(ctx,out,p,users){
   musicBus.connect(warmDry);shaper.connect(warmWet);warmDry.connect(warmSum);warmWet.connect(warmSum);warmSum.connect(shelf);
   // onda del filtro
   const sweepF=ctx.createBiquadFilter();sweepF.type="lowpass";sweepF.Q.value=0.6;sweepF.frequency.value=p.sweep>0?1900:20000;
-  const swL=osc("sine",0.045),swG=G(p.sweep*1500);swL.connect(swG);swG.connect(sweepF.frequency);shelf.connect(sweepF);
+  const swL=osc("sine",0.045),swG=G(p.sweep*1500);kRate(sweepF.frequency);swL.connect(swG);shelf.connect(sweepF);
   // chorus stereo
   const chSum=G(1),chSplit=ctx.createChannelSplitter(2),chMerge=ctx.createChannelMerger(2),chWet=G(p.chorus*0.8);
   sweepF.connect(chSum);
@@ -453,6 +456,7 @@ function makeEngine(ctx,out,p,users){
     link(musicBus,shaper,p.warmth>0,"warm");
     link(sweepF,chSplit,p.chorus>0,"chorus");
     link(rot,echoIn,p.echoMix>0,"echo");
+    link(swG,sweepF.frequency,p.sweep>0,"sweep");
   }
   route();
 
@@ -473,7 +477,7 @@ function makeEngine(ctx,out,p,users){
     const cut=q=>{const c=cfg(q),k=CUT[c.timbre]||CUT.morbido;return(k[0]+q.bright*q.bright*k[1])*(c.oct>0?1.5:1)};
     filt.frequency.value=cut(p);
     const fl=osc("sine",0.02+p.motion*0.18),depth=q=>cut(q)*0.25*(0.2+q.motion),flg=G(depth(p));
-    fl.connect(flg);flg.connect(filt.frequency);filt.connect(padG);padG.connect(musicBus);
+    kRate(filt.frequency);fl.connect(flg);flg.connect(filt.frequency);filt.connect(padG);padG.connect(musicBus);
     // banco di formanti per il coro (vocale "a")
     const formIn=G(1),formSum=G(2.4);
     [[800,5,1],[1150,7,0.6],[2900,9,0.25]].forEach(f=>{const b=ctx.createBiquadFilter();b.type="bandpass";b.frequency.value=f[0];b.Q.value=f[1];const g=G(f[2]);formIn.connect(b);b.connect(g);g.connect(formSum)});
@@ -602,7 +606,7 @@ function makeEngine(ctx,out,p,users){
   const CAL={pioggia:0.7,temporale:0.8,mare:1,ruscello:1.1,vento:1,fuoco:1,grilli:0.2,uccelli:1.1,cuore:1,bianco:0.22,rosa:0.55,marrone:0.8,spirale:1,stelle:1.6,ventoSolare:0.5,bucoNero:0.6,pulsar:1.5,radio:1.2,voci:0.8,respiro:1};
   const ambNodes={};
   function src(kind,t){const s=ctx.createBufferSource();s.buffer=noiseBuffer(ctx,kind);s.loop=true;s.start(t);return s}
-  function filter(type,f,q){const b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;if(q)b.Q.value=q;return b}
+  function filter(type,f,q){const b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;if(q)b.Q.value=q;kRate(b.frequency);return b}
   function chain(){for(let i=0;i<arguments.length-1;i++)arguments[i].connect(arguments[i+1]);return arguments[arguments.length-1]}
   function buildAmb(k,t){
     if(ambNodes[k])return;
@@ -755,8 +759,12 @@ function makeEngine(ctx,out,p,users){
     scheds.forEach(s=>{s.next=t+(s.skipFirst?s.gap():s.first)});
     Object.keys(AMB0).forEach(k=>{if(p.amb[k]>0)buildAmb(k,t)});
   };
+  let held=false;
+  /* in pausa la programmazione degli eventi mentre suona la registrazione a schermo spento */
+  E.hold=function(v){held=v;if(!v){const n=ctx.currentTime+0.1;scheds.forEach(s=>{let g=0;while(s.next<n&&g++<10000)s.next+=s.gap()})}};
   E.live=function(){
     timer=setInterval(()=>{
+      if(held)return;
       const hidden=typeof document!=="undefined"&&document.visibilityState==="hidden";
       const h=ctx.currentTime+(hidden?12:1.5);
       for(const s of scheds){let guard=0;while(s.next<h&&guard++<60){if(s.next>=ctx.currentTime-0.05&&s.active())s.fn(s.next);s.next+=s.gap()}}
@@ -922,6 +930,7 @@ function readouts(){
   document.querySelectorAll("[data-preset]").forEach(btn=>{const pr=PRESETS[btn.dataset.preset].p;
     btn.setAttribute("aria-pressed",String(Object.keys(pr).every(k=>JSON.stringify(pr[k])===JSON.stringify(P[k]))))});
   if(!running)drawViz(0);
+  if(ctx){scheduleBgRender();if(statusEl.textContent==="In ascolto · pronta anche a schermo spento"&&BG.key!==bgKey())statusEl.textContent="In ascolto"}
 }
 function changed(){readouts();save();if(eng)eng.update(clone(P));if(ctx)updateMeta()}
 document.querySelectorAll("[data-k]").forEach(el=>{
@@ -935,7 +944,7 @@ document.querySelectorAll("[data-k]").forEach(el=>{
 });
 document.querySelectorAll("[data-amb]").forEach(el=>el.addEventListener("input",()=>{P.amb[el.dataset.amb]=parseFloat(el.value);changed()}));
 $("ambZero").addEventListener("click",()=>{P.amb=Object.assign({},AMB0);render();changed()});
-$("master").addEventListener("input",e=>{P.master=parseFloat(e.target.value);if(ctx&&master)master.gain.setTargetAtTime(P.master,ctx.currentTime,0.08);save()});
+$("master").addEventListener("input",e=>{P.master=parseFloat(e.target.value);if(ctx&&master){master.gain.setTargetAtTime(P.master,ctx.currentTime,0.08);if(BG.gain)BG.gain.gain.setTargetAtTime(P.master,ctx.currentTime,0.08)}save()});
 document.querySelectorAll("[data-preset]").forEach(btn=>btn.addEventListener("click",()=>{
   const m=P.master;P=clone(PRESETS[btn.dataset.preset].p);P.master=m;render();save();if(eng)eng.update(clone(P));if(ctx)updateMeta();
 }));
@@ -959,27 +968,12 @@ $("applyBtn").addEventListener("click",()=>{
 });
 
 /* ---------- ascolto dal vivo ---------- */
-let ctx=null,eng=null,master=null,startAt=0,tick=null,sleepFired=false;
+let liveOut=null,ctx=null,eng=null,master=null,startAt=0,tick=null,sleepFired=false;
 const statusEl=$("status");
 /* ---------- ascolto in sottofondo (schermo spento, altre app) ---------- */
 const UA=navigator.userAgent||"";
 const IS_IOS=/iPad|iPhone|iPod/.test(UA)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
-const IS_ANDROID=/Android/i.test(UA);
-let bgEl=null,bgDest=null;
-function routeOutput(){
-  /* Android: il suono passa dal lettore multimediale del telefono, che resta attivo a schermo spento */
-  if(IS_ANDROID&&ctx.createMediaStreamDestination){
-    try{
-      bgDest=ctx.createMediaStreamDestination();master.connect(bgDest);
-      if(!bgEl){bgEl=document.createElement("audio");bgEl.setAttribute("playsinline","");bgEl.hidden=true;document.body.appendChild(bgEl)}
-      bgEl.srcObject=bgDest.stream;
-      const pr=bgEl.play();
-      if(pr&&pr.catch)pr.catch(()=>{try{master.disconnect(bgDest)}catch(e){}bgDest=null;master.connect(ctx.destination)});
-      return;
-    }catch(e){bgDest=null}
-  }
-  master.connect(ctx.destination);
-}
+function routeOutput(){liveOut=ctx.createGain();master.connect(liveOut);liveOut.connect(ctx.destination)}
 function currentName(){
   const pr=document.querySelector('[data-preset][aria-pressed="true"]');
   if(pr&&PRESETS[pr.dataset.preset])return PRESETS[pr.dataset.preset].label;
@@ -1033,27 +1027,96 @@ async function play(){
   showIcon(true);mediaSession(true);
   statusEl.textContent="In ascolto";
   tick=setInterval(updateClock,500);
+  scheduleBgRender(2500);
   startViz();
 }
 function stop(){
   if(!ctx)return;
   const c=ctx,e=eng;
-  try{master.gain.setTargetAtTime(0,c.currentTime,0.15)}catch(err){}
+  try{master.gain.setTargetAtTime(0,c.currentTime,0.15);if(BG.gain)BG.gain.gain.setTargetAtTime(0,c.currentTime,0.15)}catch(err){}
+  const bs=BG.src;setTimeout(()=>{try{if(bs)bs.stop()}catch(err){}},650);BG.src=null;BG.gain=null;BG.active=false;clearTimeout(BG.timer);
   setTimeout(()=>{try{e.dispose();c.close()}catch(err){}},700);
   ctx=null;eng=null;clearInterval(tick);
   showIcon(false);mediaSession(false);
-  if(bgEl){try{bgEl.pause();bgEl.srcObject=null}catch(err){}}bgDest=null;
   statusEl.textContent="In pausa";
   stopViz();
 }
+/* ---------- a schermo spento sui telefoni: registrazione leggera in loop ----------
+   Il telefono, con l'app chiusa, dà meno potenza al browser e il calcolo dal vivo scricchiola.
+   Mentre guardi, la console prepara in silenzio 45 secondi del suono attuale; quando chiudi l'app
+   passa a quella registrazione (che costa quasi zero), quando torni riprende il suono dal vivo. */
+const TOUCH=(()=>{try{return window.matchMedia("(pointer: coarse)").matches}catch(e){return false}})();
+const BG={buf:null,key:"",sr:0,rendering:false,again:false,src:null,gain:null,active:false,timer:null};
+const bgKey=()=>JSON.stringify(soundOf(P));
+function scheduleBgRender(delay){
+  if(!TOUCH||!ctx)return;
+  clearTimeout(BG.timer);BG.timer=setTimeout(renderBg,delay==null?4000:delay);
+}
+async function renderBg(){
+  if(!ctx)return;
+  if(BG.rendering){BG.again=true;return}
+  const key=bgKey(),sr=ctx.sampleRate;
+  if(BG.buf&&BG.key===key&&BG.sr===sr){bgReady();return}
+  BG.rendering=true;
+  try{
+    const S=6,L=45,X=4,tot=S+L+X;
+    const oc=new OfflineAudioContext(2,Math.ceil(tot*sr),sr);
+    const mg=oc.createGain();mg.connect(oc.destination);
+    const e=makeEngine(oc,mg,clone(P),[]);e.start(0);e.offline(tot);
+    const r=await oc.startRendering();
+    if(ctx&&bgKey()===key){
+      const Ls=Math.round(L*sr),Xs=Math.round(X*sr),Ss=Math.round(S*sr),out=ctx.createBuffer(2,Ls,sr);
+      for(let c=0;c<2;c++){const d=r.getChannelData(c),o=out.getChannelData(c);
+        for(let i=0;i<Ls;i++){let v=d[Ss+i];if(i<Xs){const a=i/Xs*Math.PI/2;v=d[Ss+i]*Math.sin(a)+d[Ss+Ls+i]*Math.cos(a)}o[i]=v}}
+      BG.buf=out;BG.key=key;BG.sr=sr;bgReady();
+    }else BG.again=true;
+  }catch(err){}
+  BG.rendering=false;
+  if(BG.again){BG.again=false;scheduleBgRender(1000)}
+}
+function bgReady(){
+  if(!ctx)return;
+  if(statusEl.textContent==="In ascolto")statusEl.textContent="In ascolto · pronta anche a schermo spento";
+  if(document.visibilityState==="hidden")goBackground();
+}
+function atAudioTime(t,fn){
+  /* timer sull'orologio audio: funziona anche quando il telefono rallenta quelli della pagina */
+  try{const k=ctx.createConstantSource(),z=ctx.createGain();z.gain.value=0;k.connect(z);z.connect(ctx.destination);
+    k.onended=()=>{try{fn()}catch(e){}try{z.disconnect()}catch(e){}};k.start();k.stop(t)}catch(e){setTimeout(fn,Math.max(0,(t-ctx.currentTime)*1000))}
+}
+function goBackground(){
+  if(!ctx||BG.active||!BG.buf||BG.key!==bgKey()||BG.sr!==ctx.sampleRate)return;
+  const t=ctx.currentTime,vol=sleepFired?0:P.master;
+  BG.gain=ctx.createGain();BG.gain.gain.setValueAtTime(0,t);BG.gain.gain.linearRampToValueAtTime(vol,t+1.5);
+  BG.src=ctx.createBufferSource();BG.src.buffer=BG.buf;BG.src.loop=true;BG.src.connect(BG.gain);BG.gain.connect(ctx.destination);BG.src.start(t);
+  liveOut.gain.cancelScheduledValues(t);liveOut.gain.setValueAtTime(liveOut.gain.value,t);liveOut.gain.linearRampToValueAtTime(0,t+1.5);
+  BG.active=true;if(eng)eng.hold(true);
+  atAudioTime(t+1.6,()=>{if(BG.active){try{liveOut.disconnect()}catch(e){}}});
+}
+function goForeground(){
+  if(!ctx||!BG.active)return;
+  BG.active=false;
+  const t=ctx.currentTime,src=BG.src,g=BG.gain;BG.src=null;BG.gain=null;
+  try{liveOut.connect(ctx.destination)}catch(e){}
+  if(eng)eng.hold(false);
+  liveOut.gain.cancelScheduledValues(t);liveOut.gain.setValueAtTime(0,t);liveOut.gain.linearRampToValueAtTime(1,t+1.2);
+  if(g){g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(g.gain.value,t);g.gain.linearRampToValueAtTime(0,t+1.2)}
+  if(src){try{src.onended=()=>{try{g.disconnect()}catch(e){}};src.stop(t+1.3)}catch(e){}}
+}
+
 function updateClock(){
   const s=Math.floor((performance.now()-startAt)/1000);
   $("elapsed").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
   const lim=parseInt($("sleep").value,10);
-  if(lim&&!sleepFired&&s>=lim*60){sleepFired=true;statusEl.textContent="Spegnimento dolce in corso";if(ctx)master.gain.setTargetAtTime(0,ctx.currentTime,6);setTimeout(stop,22000)}
+  if(lim&&!sleepFired&&s>=lim*60){sleepFired=true;statusEl.textContent="Spegnimento dolce in corso";if(ctx){master.gain.setTargetAtTime(0,ctx.currentTime,6);if(BG.gain)BG.gain.gain.setTargetAtTime(0,ctx.currentTime,6)}setTimeout(stop,22000)}
 }
 $("play").addEventListener("click",()=>{ctx?stop():play()});
-document.addEventListener("visibilitychange",()=>{if(ctx&&document.visibilityState==="visible"&&ctx.state!=="running"){ctx.resume().catch(()=>{})}});
+document.addEventListener("visibilitychange",()=>{
+  if(!ctx)return;
+  if(document.visibilityState==="hidden"){goBackground();return}
+  if(ctx.state!=="running"){ctx.resume().catch(()=>{})}
+  goForeground();
+});
 
 /* ---------- visualizzazione ---------- */
 const cv=$("viz"),g2=cv.getContext("2d");
