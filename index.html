@@ -396,7 +396,8 @@ function safeCurve(){const n=4096,c=new Float32Array(n);for(let i=0;i<n;i++){con
 function shaperCurve(){const n=2048,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(2.2*x)/Math.tanh(2.2)}return c}
 
 /* ---------- motore audio (uguale per ascolto ed esportazione) ---------- */
-function makeEngine(ctx,out,p,users){
+function makeEngine(ctx,out,p,users,seed){
+  const SD=(seed|0)*7919;
   const E={},tc=0.08,now=()=>ctx.currentTime;
   const set=(param,v)=>{param.setTargetAtTime(v,now(),tc)};
   const setFast=(param,v)=>{param.setTargetAtTime(v,now(),0.02)};
@@ -545,7 +546,7 @@ function makeEngine(ctx,out,p,users){
   /* --- strumenti per melodia e arpeggio --- */
   const melG=G(p.melOn?p.melVol*0.5:0);melG.connect(musicBus);
   const arpG=G(p.arpOn?p.arpVol*0.5:0);arpG.connect(musicBus);
-  const mr=rng(211),ar=rng(419);
+  const mr=rng(211+SD),ar=rng(419+SD);
   function partials(t,f,list,att,peak,pn){
     const g=G(1);g.connect(pn);
     list.forEach(([r,a,dec])=>{const o=osc("sine",f*r),og=ctx.createGain();og.gain.setValueAtTime(0,t);og.gain.linearRampToValueAtTime(a*peak,t+att);og.gain.exponentialRampToValueAtTime(0.0001,t+dec);o.connect(og);og.connect(g);o.start(t);o.stop(t+dec+0.05)});
@@ -664,7 +665,7 @@ function makeEngine(ctx,out,p,users){
     }
     ambNodes[k]={g,stops};
   }
-  const er=rng(331);
+  const er=rng(331+SD);
   function thunder(t){const n=ambNodes.temporale;if(!n)return;
     const s=ctx.createBufferSource();s.buffer=noiseBuffer(ctx,"brown");const lp=filter("lowpass",180+er()*250),gg=ctx.createGain(),pn=ctx.createStereoPanner();pn.pan.value=er()*1.4-0.7;
     const att=0.4+er()*0.8,dec=5+er()*4,pk=0.6+er()*0.6;gg.gain.setValueAtTime(0,t);gg.gain.linearRampToValueAtTime(pk,t+att);gg.gain.exponentialRampToValueAtTime(0.001,t+att+dec);
@@ -719,7 +720,7 @@ function makeEngine(ctx,out,p,users){
 
   /* --- campane --- */
   const bellG=G(p.bellVol*0.5);bellG.connect(musicBus);
-  const br=rng(97);
+  const br=rng(97+SD);
   function strike(t,f0,parts,amp,pv){const pn=ctx.createStereoPanner();pn.pan.value=pv;pn.connect(bellG);
     for(const [ratio,a,dec] of parts){const o=osc("sine",f0*ratio),g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a*amp,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dec);o.connect(g);g.connect(pn);o.start(t);o.stop(t+dec+0.1)}}
   function bell(t){
@@ -930,7 +931,7 @@ function readouts(){
   document.querySelectorAll("[data-preset]").forEach(btn=>{const pr=PRESETS[btn.dataset.preset].p;
     btn.setAttribute("aria-pressed",String(Object.keys(pr).every(k=>JSON.stringify(pr[k])===JSON.stringify(P[k]))))});
   if(!running)drawViz(0);
-  if(ctx){scheduleBgRender();if(statusEl.textContent==="In ascolto · pronta anche a schermo spento"&&BG.key!==bgKey())statusEl.textContent="In ascolto"}
+  soundChanged();
 }
 function changed(){readouts();save();if(eng)eng.update(clone(P));if(ctx)updateMeta()}
 document.querySelectorAll("[data-k]").forEach(el=>{
@@ -944,7 +945,7 @@ document.querySelectorAll("[data-k]").forEach(el=>{
 });
 document.querySelectorAll("[data-amb]").forEach(el=>el.addEventListener("input",()=>{P.amb[el.dataset.amb]=parseFloat(el.value);changed()}));
 $("ambZero").addEventListener("click",()=>{P.amb=Object.assign({},AMB0);render();changed()});
-$("master").addEventListener("input",e=>{P.master=parseFloat(e.target.value);if(ctx&&master){master.gain.setTargetAtTime(P.master,ctx.currentTime,0.08);if(BG.gain)BG.gain.gain.setTargetAtTime(P.master,ctx.currentTime,0.08)}save()});
+$("master").addEventListener("input",e=>{P.master=parseFloat(e.target.value);if(ctx&&master){master.gain.setTargetAtTime(P.master,ctx.currentTime,0.08);if(loopBus)loopBus.gain.setTargetAtTime(P.master,ctx.currentTime,0.08)}save()});
 document.querySelectorAll("[data-preset]").forEach(btn=>btn.addEventListener("click",()=>{
   const m=P.master;P=clone(PRESETS[btn.dataset.preset].p);P.master=m;render();save();if(eng)eng.update(clone(P));if(ctx)updateMeta();
 }));
@@ -973,7 +974,7 @@ const statusEl=$("status");
 /* ---------- ascolto in sottofondo (schermo spento, altre app) ---------- */
 const UA=navigator.userAgent||"";
 const IS_IOS=/iPad|iPhone|iPod/.test(UA)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
-function routeOutput(){liveOut=ctx.createGain();master.connect(liveOut);liveOut.connect(ctx.destination)}
+function routeOutput(){liveOut=ctx.createGain();master.connect(liveOut);liveOut.connect(ctx.destination);loopBus=ctx.createGain();loopBus.gain.value=P.master;loopBus.connect(ctx.destination);BG.mode="live";BG.cur=null}
 function currentName(){
   const pr=document.querySelector('[data-preset][aria-pressed="true"]');
   if(pr&&PRESETS[pr.dataset.preset])return PRESETS[pr.dataset.preset].label;
@@ -1027,95 +1028,117 @@ async function play(){
   showIcon(true);mediaSession(true);
   statusEl.textContent="In ascolto";
   tick=setInterval(updateClock,500);
-  scheduleBgRender(2500);
+  if(TOUCH){statusEl.textContent=ST_PREP;scheduleRender(2500)}
   startViz();
 }
 function stop(){
   if(!ctx)return;
   const c=ctx,e=eng;
-  try{master.gain.setTargetAtTime(0,c.currentTime,0.15);if(BG.gain)BG.gain.gain.setTargetAtTime(0,c.currentTime,0.15)}catch(err){}
-  const bs=BG.src;setTimeout(()=>{try{if(bs)bs.stop()}catch(err){}},650);BG.src=null;BG.gain=null;BG.active=false;clearTimeout(BG.timer);
+  try{master.gain.setTargetAtTime(0,c.currentTime,0.15);if(loopBus)loopBus.gain.setTargetAtTime(0,c.currentTime,0.15)}catch(err){}
+  clearTimeout(BG.timer);clearTimeout(BG.roll);BG.cur=null;BG.mode="live";BG.again=false;loopBus=null;
   setTimeout(()=>{try{e.dispose();c.close()}catch(err){}},700);
   ctx=null;eng=null;clearInterval(tick);
   showIcon(false);mediaSession(false);
   statusEl.textContent="In pausa";
   stopViz();
 }
-/* ---------- a schermo spento sui telefoni: registrazione leggera in loop ----------
-   Il telefono, con l'app chiusa, dà meno potenza al browser e il calcolo dal vivo scricchiola.
-   Mentre guardi, la console prepara in silenzio 45 secondi del suono attuale; quando chiudi l'app
-   passa a quella registrazione (che costa quasi zero), quando torni riprende il suono dal vivo. */
+/* ---------- telefoni: audio stabile ----------
+   Il calcolo dal vivo su telefono può scricchiolare (app chiusa, o picchi di lavoro).
+   Sui telefoni la console calcola in anticipo 45 secondi del suono attuale, a piena qualità,
+   e li suona in loop: riprodurre una registrazione costa quasi zero.
+   Dal vivo suona solo per pochi secondi dopo ogni modifica, mentre prepara la nuova versione.
+   Ogni 30 secondi circa prepara una variazione nuova (melodia e eventi diversi),
+   quindi a schermo acceso il suono non si ripete uguale. */
 const TOUCH=(()=>{try{return window.matchMedia("(pointer: coarse)").matches}catch(e){return false}})();
-const BG={buf:null,key:"",sr:0,rendering:false,again:false,src:null,gain:null,active:false,timer:null};
+const LP={S:6,L:45,X:4};
+const BG={mode:"live",cur:null,rendering:false,again:false,timer:null,roll:null,seed:1};
+let loopBus=null;
 const bgKey=()=>JSON.stringify(soundOf(P));
-function scheduleBgRender(delay){
+const ST_PREP="In ascolto · preparo l'audio stabile…",ST_OK="In ascolto · audio stabile";
+function scheduleRender(delay){
   if(!TOUCH||!ctx)return;
-  clearTimeout(BG.timer);BG.timer=setTimeout(renderBg,delay==null?4000:delay);
+  clearTimeout(BG.timer);BG.timer=setTimeout(renderLoop,delay==null?4000:delay);
 }
-async function renderBg(){
+async function renderLoop(){
   if(!ctx)return;
   if(BG.rendering){BG.again=true;return}
-  const key=bgKey(),sr=ctx.sampleRate;
-  if(BG.buf&&BG.key===key&&BG.sr===sr){bgReady();return}
+  const key=bgKey(),sr=ctx.sampleRate,seed=BG.seed++,myCtx=ctx;
   BG.rendering=true;
   try{
-    const S=6,L=45,X=4,tot=S+L+X;
-    const oc=new OfflineAudioContext(2,Math.ceil(tot*sr),sr);
+    const tot=LP.S+LP.L+LP.X,oc=new OfflineAudioContext(2,Math.ceil(tot*sr),sr);
     const mg=oc.createGain();mg.connect(oc.destination);
-    const e=makeEngine(oc,mg,clone(P),[]);e.start(0);e.offline(tot);
+    /* la registrazione non deve stare al passo col tempo reale: piena qualità come sul computer */
+    const was=LIGHT;LIGHT=false;let e;
+    try{e=makeEngine(oc,mg,clone(P),[],seed);e.start(0);e.offline(tot)}finally{LIGHT=was}
     const r=await oc.startRendering();
-    if(ctx&&bgKey()===key){
-      const Ls=Math.round(L*sr),Xs=Math.round(X*sr),Ss=Math.round(S*sr),out=ctx.createBuffer(2,Ls,sr);
+    if(ctx===myCtx&&bgKey()===key){
+      const Ls=Math.round(LP.L*sr),Xs=Math.round(LP.X*sr),Ss=Math.round(LP.S*sr),out=ctx.createBuffer(2,Ls,sr);
       for(let c=0;c<2;c++){const d=r.getChannelData(c),o=out.getChannelData(c);
         for(let i=0;i<Ls;i++){let v=d[Ss+i];if(i<Xs){const a=i/Xs*Math.PI/2;v=d[Ss+i]*Math.sin(a)+d[Ss+Ls+i]*Math.cos(a)}o[i]=v}}
-      BG.buf=out;BG.key=key;BG.sr=sr;bgReady();
+      playLoop(out,key);
     }else BG.again=true;
   }catch(err){}
   BG.rendering=false;
-  if(BG.again){BG.again=false;scheduleBgRender(1000)}
-}
-function bgReady(){
-  if(!ctx)return;
-  if(statusEl.textContent==="In ascolto")statusEl.textContent="In ascolto · pronta anche a schermo spento";
-  if(document.visibilityState==="hidden")goBackground();
+  if(BG.again){BG.again=false;scheduleRender(1000)}
 }
 function atAudioTime(t,fn){
   /* timer sull'orologio audio: funziona anche quando il telefono rallenta quelli della pagina */
   try{const k=ctx.createConstantSource(),z=ctx.createGain();z.gain.value=0;k.connect(z);z.connect(ctx.destination);
     k.onended=()=>{try{fn()}catch(e){}try{z.disconnect()}catch(e){}};k.start();k.stop(t)}catch(e){setTimeout(fn,Math.max(0,(t-ctx.currentTime)*1000))}
 }
-function goBackground(){
-  if(!ctx||BG.active||!BG.buf||BG.key!==bgKey()||BG.sr!==ctx.sampleRate)return;
-  const t=ctx.currentTime,vol=sleepFired?0:P.master;
-  BG.gain=ctx.createGain();BG.gain.gain.setValueAtTime(0,t);BG.gain.gain.linearRampToValueAtTime(vol,t+1.5);
-  BG.src=ctx.createBufferSource();BG.src.buffer=BG.buf;BG.src.loop=true;BG.src.connect(BG.gain);BG.gain.connect(ctx.destination);BG.src.start(t);
-  liveOut.gain.cancelScheduledValues(t);liveOut.gain.setValueAtTime(liveOut.gain.value,t);liveOut.gain.linearRampToValueAtTime(0,t+1.5);
-  BG.active=true;if(eng)eng.hold(true);
-  atAudioTime(t+1.6,()=>{if(BG.active){try{liveOut.disconnect()}catch(e){}}});
+function fadeOutLoop(l,t,X){
+  if(!l)return;
+  l.gain.gain.cancelScheduledValues(t);l.gain.gain.setValueAtTime(l.gain.gain.value,t);l.gain.gain.linearRampToValueAtTime(0,t+X);
+  try{l.src.onended=()=>{try{l.gain.disconnect()}catch(e){}};l.src.stop(t+X+0.05)}catch(e){}
 }
-function goForeground(){
-  if(!ctx||!BG.active)return;
-  BG.active=false;
-  const t=ctx.currentTime,src=BG.src,g=BG.gain;BG.src=null;BG.gain=null;
+function playLoop(buf,key){
+  if(!ctx)return;
+  const t=ctx.currentTime+0.05,old=BG.cur,X=old?2.5:1.5;
+  /* stessa posizione della registrazione precedente: il tappeto resta allineato e il passaggio non si sente */
+  const offset=old&&old.key===key?(((t-old.start)%LP.L)+LP.L)%LP.L:0;
+  const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(1,t+X);
+  const src=ctx.createBufferSource();src.buffer=buf;src.loop=true;src.connect(g);g.connect(loopBus);src.start(t,offset);
+  BG.cur={src,gain:g,key,start:t-offset};
+  fadeOutLoop(old,t,X);
+  if(BG.mode==="live"){
+    BG.mode="loop";
+    liveOut.gain.cancelScheduledValues(t);liveOut.gain.setValueAtTime(liveOut.gain.value,t);liveOut.gain.linearRampToValueAtTime(0,t+X);
+    if(eng)eng.hold(true);
+    atAudioTime(t+X+0.1,()=>{if(BG.mode==="loop"){try{liveOut.disconnect()}catch(e){}}});
+  }
+  if(!sleepFired&&/^In ascolto/.test(statusEl.textContent))statusEl.textContent=ST_OK;
+  clearTimeout(BG.roll);
+  BG.roll=setTimeout(()=>{if(ctx&&BG.mode==="loop"&&document.visibilityState==="visible"&&bgKey()===key)renderLoop()},30000);
+}
+function toLive(){
+  if(!ctx||BG.mode!=="loop")return;
+  BG.mode="live";clearTimeout(BG.roll);
+  const t=ctx.currentTime;
   try{liveOut.connect(ctx.destination)}catch(e){}
   if(eng)eng.hold(false);
-  liveOut.gain.cancelScheduledValues(t);liveOut.gain.setValueAtTime(0,t);liveOut.gain.linearRampToValueAtTime(1,t+1.2);
-  if(g){g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(g.gain.value,t);g.gain.linearRampToValueAtTime(0,t+1.2)}
-  if(src){try{src.onended=()=>{try{g.disconnect()}catch(e){}};src.stop(t+1.3)}catch(e){}}
+  liveOut.gain.cancelScheduledValues(t);liveOut.gain.setValueAtTime(0,t);liveOut.gain.linearRampToValueAtTime(1,t+0.4);
+  fadeOutLoop(BG.cur,t,0.4);BG.cur=null;
+  if(!sleepFired&&/^In ascolto/.test(statusEl.textContent))statusEl.textContent=ST_PREP;
+}
+/* chiamata a ogni cambio di suono */
+function soundChanged(){
+  if(!ctx||!TOUCH)return;
+  if(BG.mode==="loop"&&BG.cur&&BG.cur.key===bgKey())return;
+  toLive();scheduleRender();
 }
 
 function updateClock(){
   const s=Math.floor((performance.now()-startAt)/1000);
   $("elapsed").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
   const lim=parseInt($("sleep").value,10);
-  if(lim&&!sleepFired&&s>=lim*60){sleepFired=true;statusEl.textContent="Spegnimento dolce in corso";if(ctx){master.gain.setTargetAtTime(0,ctx.currentTime,6);if(BG.gain)BG.gain.gain.setTargetAtTime(0,ctx.currentTime,6)}setTimeout(stop,22000)}
+  if(lim&&!sleepFired&&s>=lim*60){sleepFired=true;statusEl.textContent="Spegnimento dolce in corso";if(ctx){master.gain.setTargetAtTime(0,ctx.currentTime,6);if(loopBus)loopBus.gain.setTargetAtTime(0,ctx.currentTime,6)}setTimeout(stop,22000)}
 }
 $("play").addEventListener("click",()=>{ctx?stop():play()});
 document.addEventListener("visibilitychange",()=>{
-  if(!ctx)return;
-  if(document.visibilityState==="hidden"){goBackground();return}
+  if(!ctx||document.visibilityState!=="visible")return;
   if(ctx.state!=="running"){ctx.resume().catch(()=>{})}
-  goForeground();
+  /* al ritorno prepara subito una variazione nuova */
+  if(TOUCH&&BG.mode==="loop"&&!BG.rendering){clearTimeout(BG.roll);BG.roll=setTimeout(()=>{if(ctx&&BG.mode==="loop")renderLoop()},3000)}
 });
 
 /* ---------- visualizzazione ---------- */
