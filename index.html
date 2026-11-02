@@ -10,7 +10,7 @@
 <title>Console Binaurale</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-/* Layout: console notturna in tema Cosmo profondo: pannelli di vetro su un cielo stellato che brilla e scorre lentamente. Barra di trasporto e onde in alto, preset, poi quattro schede (Suono, Fondi, Effetti, Esporta) con moduli a griglia. Tema scuro scelto di proposito: si usa la sera. */
+/* Layout: console notturna in tema Cosmo profondo: pannelli di vetro su un cielo stellato che brilla e scorre lentamente. Barra di trasporto e onde in alto, preset, poi tre schede (Suono, Fondi, Condividi) con moduli a griglia. Tema scuro scelto di proposito: si usa la sera. */
 :root{
   --bg:#11151b;
   --panel:#171d25;
@@ -201,6 +201,21 @@ input[type=range]::-moz-range-track{background:rgba(160,200,255,.18)}
 input[type=range]::-webkit-slider-thumb{background:#fff;border-color:#0b1226;box-shadow:0 0 10px rgba(94,234,212,.6)}
 .switch input:checked + .track{background:linear-gradient(135deg,#5eead4,#93c5fd)}
 .btn.primary{color:#03201c}
+.guide{position:relative;padding:0}
+.guide::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.5px;background:linear-gradient(135deg,#5eead4,#93c5fd 55%,#6366f1);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);pointer-events:none}
+.mod.guide{border-color:transparent}
+.gd summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 22px}
+.gd summary::-webkit-details-marker{display:none}
+.gd-t{display:flex;flex-direction:column;gap:6px;min-width:0}
+.gd h2{font-size:clamp(1.35rem,3.2vw,1.8rem);font-weight:700;background:linear-gradient(135deg,#5eead4,#93c5fd);-webkit-background-clip:text;background-clip:text;color:transparent}
+.gd-s{font-size:.86rem;color:var(--muted)}
+.gd-ch{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;transition:transform .2s}
+.gd-ch::after{content:"";width:8px;height:8px;border-right:2px solid var(--fg);border-bottom:2px solid var(--fg);transform:translateY(-2px) rotate(45deg)}
+.gd[open] .gd-ch{transform:rotate(180deg)}
+.gd summary:hover .gd-ch{border-color:var(--left)}
+.gd summary:focus-visible{outline:2px solid var(--right);outline-offset:-4px;border-radius:20px}
+.gd-in{gap:20px;padding:0 22px 22px;align-items:start}
+.gd-in ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px}
 </style>
 
 <div class="cosmos" aria-hidden="true"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><canvas id="sky"></canvas></div>
@@ -230,37 +245,38 @@ input[type=range]::-webkit-slider-thumb{background:#fff;border-color:#0b1226;box
   <canvas id="viz" aria-label="Rappresentazione dei due toni e del battimento percepito"></canvas>
 
   <section class="mod guide" aria-labelledby="h-guide">
-    <div class="row2" style="gap:20px">
-      <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
-        <h2 id="h-guide">Prima di iniziare</h2>
+    <details class="gd">
+      <summary>
+        <span class="gd-t">
+          <h2 id="h-guide">Avvertenze e modo d'uso</h2>
+          <span class="gd-s">Non è un dispositivo medico · Non usarla alla guida · Volume moderato</span>
+        </span>
+        <span class="gd-ch" aria-hidden="true"></span>
+      </summary>
+      <div class="row2 gd-in">
         <ul>
           <li><strong>Non è un dispositivo medico.</strong> Non diagnostica, non cura e non sostituisce terapie o il parere di un medico. Le ricerche sugli effetti dei battimenti binaurali sono contrastanti.</li>
           <li><strong>Non usarla alla guida</strong> o mentre fai attività che richiedono attenzione, come usare macchinari.</li>
           <li><strong>Proteggi l'udito.</strong> Tieni un volume moderato, soprattutto in cuffia e nelle sessioni lunghe. Interrompi se senti fastidio, ronzii, mal di testa o capogiri.</li>
+          <li><strong>Per prudenza, chiedi al medico prima di usarla</strong> se soffri di epilessia o di altre condizioni neurologiche o cardiache, se porti un pacemaker o se sei in gravidanza.</li>
+          <li><strong>Minori:</strong> possono usarla solo con la supervisione di un adulto.</li>
+          <li><strong>Uso libero e senza garanzie.</strong> La console è gratuita e fornita così com'è: la usi sotto la tua responsabilità.</li>
+          <li><strong>Privacy:</strong> questa console non raccoglie dati, non usa cookie e non invia nulla. Ricorda le tue impostazioni e i suoni che salvi solo nel tuo browser. Il servizio che ospita la pagina può registrare dati tecnici di accesso, come l'indirizzo IP, secondo la propria informativa.</li>
+          <li><strong>Chi l'ha creata e diritti:</strong> © 2026 Alessandro Gurini, creata con Claude di Anthropic. Puoi usare liberamente la console da questo link. Non è consentito copiarla o modificarla senza autorizzazione.</li>
         </ul>
-        <details class="more">
-          <summary>Avvertenze complete</summary>
-          <ul>
-            <li><strong>Per prudenza, chiedi al medico prima di usarla</strong> se soffri di epilessia o di altre condizioni neurologiche o cardiache, se porti un pacemaker o se sei in gravidanza.</li>
-            <li><strong>Minori:</strong> possono usarla solo con la supervisione di un adulto.</li>
-            <li><strong>Uso libero e senza garanzie.</strong> La console è gratuita e fornita così com'è: la usi sotto la tua responsabilità.</li>
-            <li><strong>Privacy:</strong> questa console non raccoglie dati, non usa cookie e non invia nulla. Ricorda le tue impostazioni e i suoni che salvi solo nel tuo browser. Il servizio che ospita la pagina può registrare dati tecnici di accesso, come l'indirizzo IP, secondo la propria informativa.</li>
-            <li><strong>Chi l'ha creata e diritti:</strong> © 2026 Alessandro Gurini, creata con Claude di Anthropic. Puoi usare liberamente la console da questo link. Non è consentito copiarla, modificarla o ripubblicarla altrove senza autorizzazione.</li>
-          </ul>
-        </details>
+        <div class="tblwrap">
+          <table class="tbl">
+            <thead><tr><th>Banda</th><th>Battimento</th><th>Uso tipico</th></tr></thead>
+            <tbody>
+              <tr><td>Delta</td><td class="mono">1 a 4 Hz</td><td>Sonno profondo</td></tr>
+              <tr><td>Theta</td><td class="mono">4 a 8 Hz</td><td>Meditazione</td></tr>
+              <tr><td>Alpha</td><td class="mono">8 a 13 Hz</td><td>Rilassamento vigile</td></tr>
+              <tr><td>Beta</td><td class="mono">13 a 30 Hz</td><td>Concentrazione</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="tblwrap">
-        <table class="tbl">
-          <thead><tr><th>Banda</th><th>Battimento</th><th>Uso tipico</th></tr></thead>
-          <tbody>
-            <tr><td>Delta</td><td class="mono">1 a 4 Hz</td><td>Sonno profondo</td></tr>
-            <tr><td>Theta</td><td class="mono">4 a 8 Hz</td><td>Meditazione</td></tr>
-            <tr><td>Alpha</td><td class="mono">8 a 13 Hz</td><td>Rilassamento vigile</td></tr>
-            <tr><td>Beta</td><td class="mono">13 a 30 Hz</td><td>Concentrazione</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    </details>
   </section>
 
 
@@ -279,7 +295,6 @@ input[type=range]::-webkit-slider-thumb{background:#fff;border-color:#0b1226;box
   <div class="tabs" role="tablist" aria-label="Sezioni della console">
     <button class="tab" role="tab" id="tab-suono" aria-controls="p-suono" data-tab="suono">Suono</button>
     <button class="tab" role="tab" id="tab-fondi" aria-controls="p-fondi" data-tab="fondi">Fondi<span class="cnt" id="cntFondi"></span></button>
-    <button class="tab" role="tab" id="tab-effetti" aria-controls="p-effetti" data-tab="effetti">Effetti<span class="cnt" id="cntFx"></span></button>
     <button class="tab" role="tab" id="tab-esporta" aria-controls="p-esporta" data-tab="esporta">Condividi</button>
   </div>
 
@@ -291,7 +306,6 @@ input[type=range]::-webkit-slider-thumb{background:#fff;border-color:#0b1226;box
       <div class="ambgrid" id="ambgrid"></div>
     </section>
   </div>
-  <div class="grid" role="tabpanel" id="p-effetti" aria-labelledby="tab-effetti" hidden></div>
   <div class="grid" role="tabpanel" id="p-esporta" aria-labelledby="tab-esporta" hidden>
     <section class="mod span2 sharebox" aria-labelledby="h-share">
       <div class="head"><div><h2 id="h-share">Condividi su WhatsApp</h2><p class="sub">Manda la console a un amico con un clic.</p></div></div>
@@ -886,23 +900,6 @@ const SPEC={
       ["r","bellEvery","Un rintocco circa ogni",6,60,1],
       ["r","bellVol","Volume",0,1,0.01]]}
 
-  ],
-  effetti:[
-    {id:"m-rev",title:"Riverbero",sub:"La grandezza dello spazio in cui suona tutto.",fields:[
-      ["s","revType","Ambiente",REVS],
-      ["r","space","Quantità",0,1,0.01]]},
-    {id:"m-echo",title:"Eco",sub:"Ripetizioni che rimbalzano tra orecchio sinistro e destro.",fields:[
-      ["r","echoMix","Quantità",0,1,0.01],
-      ["r","echoTime","Tempo tra le ripetizioni",0.1,1.5,0.01],
-      ["r","echoFb","Ripetizioni",0,0.85,0.01]]},
-    {id:"m-move",title:"Movimento",sub:"Fa girare e allargare il suono intorno alla testa.",fields:[
-      ["r","rotate","Rotazione 8D",0,1,0.01],
-      ["r","rotRate","Velocità di rotazione",0,1,0.01],
-      ["r","chorus","Ampiezza (chorus)",0,1,0.01]]},
-    {id:"m-color",title:"Colore",sub:"Il carattere del suono nel tempo.",fields:[
-      ["r","sweep","Onda del filtro",0,1,0.01,null,"Il suono si apre e si chiude lentamente, come una marea."],
-      ["r","warmth","Calore",0,1,0.01,null,"Saturazione morbida da nastro: più rotondo, meno acuti."],
-      ["r","trem","Pulsazione globale",0,1,0.01,"tremHint"]]}
   ]
 };
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c])}
@@ -922,7 +919,6 @@ function modHtml(m){
 }
 $("p-suono").innerHTML=SPEC.suono.map(modHtml).join("");
 $("p-fondi").insertAdjacentHTML("beforeend",SPEC.fondi.map(modHtml).join(""));
-$("p-effetti").innerHTML=SPEC.effetti.map(modHtml).join("");
 const ambCard=([k,l])=>'<div class="amb" id="amb-'+k+'"><div class="top"><label for="a-'+k+'">'+esc(l)+'</label><span class="val" id="va-'+k+'"></span></div><input type="range" id="a-'+k+'" data-amb="'+k+'" min="0" max="1" step="0.01"></div>';
 $("ambgrid").innerHTML=AMBS.map(ambCard).join("");
 $("presets").insertAdjacentHTML("beforeend",Object.keys(PRESETS).map(k=>'<button class="chip" data-preset="'+k+'">'+esc(PRESETS[k].label)+' <small>'+PRESETS[k].p.beat+' Hz</small></button>').join(""));
@@ -930,11 +926,11 @@ $("presets").insertAdjacentHTML("beforeend",Object.keys(PRESETS).map(k=>'<button
 /* ---------- tab ---------- */
 function showTab(name){
   document.querySelectorAll(".tab").forEach(b=>{const on=b.dataset.tab===name;b.setAttribute("aria-selected",String(on));b.tabIndex=on?0:-1});
-  ["suono","fondi","effetti","esporta"].forEach(n=>{$("p-"+n).hidden=n!==name});
+  ["suono","fondi","esporta"].forEach(n=>{$("p-"+n).hidden=n!==name});
   try{localStorage.setItem("cb-tab",name)}catch(e){}
 }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
-let startTab="suono";try{const t=localStorage.getItem("cb-tab");if(["suono","fondi","effetti","esporta"].includes(t))startTab=t}catch(e){}
+let startTab="suono";try{const t=localStorage.getItem("cb-tab");if(["suono","fondi","esporta"].includes(t))startTab=t}catch(e){}
 showTab(startTab);
 
 /* ---------- lettura e scrittura dei controlli ---------- */
@@ -954,15 +950,12 @@ function readouts(){
   const ec=effCarrier(P);
   $("fL").textContent=(ec-P.beat/2).toFixed(2)+" Hz";$("fR").textContent=(ec+P.beat/2).toFixed(2)+" Hz";
   $("carrierHint").textContent=P.lock?"Agganciato a "+ec.toFixed(1)+" Hz, "+harmonicOf(P)+"ª armonica del "+NOTES[P.root]+" del tappeto.":"Consigliato tra 150 e 400 Hz: più basso è più morbido.";
-  $("tremHint").textContent=P.trem>0?"Tutta la musica pulsa a "+pulseRate(P.beat).toFixed(2)+" Hz, a tempo con il battimento. Si sente anche dalle casse.":"Spenta.";
   $("melHint").textContent="Circa una nota ogni "+(7-P.melDensity*5.5).toFixed(1)+" s"+(P.melVary?", con pause tra una frase e l'altra.":".");
   $("f-melInst").disabled=!!P.melVary;
   $("bigHz").textContent=P.beat.toFixed(1)+" Hz";
   const b=bandOf(P.beat);$("bandName").textContent=b.name;$("bandUse").textContent=b.use;$("bandDot").style.background=b.color;
   const nAmb=AMBS.filter(([k])=>P.amb[k]>0).length+(P.bellsOn?1:0);
   $("cntFondi").textContent=nAmb?String(nAmb):"";
-  const nFx=["echoMix","chorus","rotate","trem","sweep","warmth"].filter(k=>P[k]>0).length;
-  $("cntFx").textContent=nFx?String(nFx):"";
   updateShareLink();
   markMine();
   document.querySelectorAll("[data-preset]").forEach(btn=>{const pr=PRESETS[btn.dataset.preset].p;
