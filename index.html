@@ -10,7 +10,7 @@
 <title>Console Binaurale</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-/* Layout: console notturna. Barra di trasporto e onde in alto, preset, poi quattro schede (Suono, Fondi, Effetti, Esporta) con moduli a griglia. Tema scuro scelto di proposito: si usa la sera. */
+/* Layout: console notturna in tema Cosmo profondo: pannelli di vetro su un cielo stellato che brilla e scorre lentamente. Barra di trasporto e onde in alto, preset, poi quattro schede (Suono, Fondi, Effetti, Esporta) con moduli a griglia. Tema scuro scelto di proposito: si usa la sera. */
 :root{
   --bg:#11151b;
   --panel:#171d25;
@@ -133,6 +133,8 @@ select,input[type=text]{font:inherit;color:var(--fg);background:var(--raise);bor
 .filebtn{position:relative;overflow:hidden}
 .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
 
+.sharebox{align-items:flex-start}
+.wa{display:inline-flex;align-items:center;gap:10px;font-size:1rem;padding:12px 26px;border-radius:999px;text-decoration:none}
 .share{display:flex;gap:8px;flex-wrap:wrap}
 .share input{flex:1 1 220px}
 .guide ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px}
@@ -154,8 +156,54 @@ select,input[type=text]{font:inherit;color:var(--fg);background:var(--raise);bor
   .row2,.ambgrid{grid-template-columns:minmax(0,1fr)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ===== Tema Cosmo profondo: vetro trasparente su cielo stellato animato ===== */
+:root{
+  --bg:#02040c;
+  --panel:rgba(16,26,56,.42);
+  --raise:rgba(140,180,255,.08);
+  --line:rgba(160,200,255,.18);
+  --fg:#e8f1ff;
+  --muted:rgba(232,241,255,.64);
+  --left:#5eead4;
+  --right:#93c5fd;
+  --ok:#5eead4;
+  --glass:linear-gradient(135deg,rgba(150,190,255,.09),rgba(10,18,40,.40));
+  --blur:20px;
+}
+@media (pointer:coarse){:root{--blur:10px}}
+.cosmos{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:var(--bg)}
+.cosmos .orb{position:absolute;border-radius:50%;filter:blur(110px)}
+.cosmos .o1{width:620px;height:620px;max-width:90vw;max-height:90vw;background:#1d4ed8;left:-140px;top:-180px;opacity:.38}
+.cosmos .o2{width:520px;height:520px;max-width:80vw;max-height:80vw;background:#14b8a6;right:-160px;top:22%;opacity:.24}
+.cosmos .o3{width:560px;height:560px;max-width:85vw;max-height:85vw;background:#6366f1;left:25%;bottom:-220px;opacity:.22}
+.cosmos canvas{position:absolute;inset:0;width:100%;height:100%}
+.wrap{position:relative;z-index:1}
+.transport,canvas#viz,.mod,.tabs{background:var(--glass);-webkit-backdrop-filter:blur(var(--blur)) saturate(150%);backdrop-filter:blur(var(--blur)) saturate(150%);
+  border:1px solid var(--line);border-bottom-color:rgba(160,200,255,.07);border-right-color:rgba(160,200,255,.07);
+  box-shadow:0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.14)}
+.transport,.mod{border-radius:20px}
+canvas#viz{border-radius:18px}
+.tabs{border-radius:14px;padding:5px;gap:4px;align-self:flex-start;border-bottom:1px solid rgba(160,200,255,.07)}
+.tab{border-radius:10px;padding:8px 16px}
+.tab[aria-selected="true"]{background:rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+.play{background:var(--left);color:#03201c;box-shadow:0 0 0 8px rgba(94,234,212,.10),0 0 40px rgba(94,234,212,.35)}
+.band .dot{box-shadow:0 0 10px currentColor}
+.chip{background:rgba(10,18,40,.45);border-color:var(--line)}
+.chip[aria-pressed="true"]{background:linear-gradient(135deg,rgba(94,234,212,.26),rgba(147,197,253,.16));border-color:rgba(94,234,212,.7)}
+.chip.add{background:linear-gradient(135deg,#5eead4,#93c5fd);border-color:transparent;color:#03201c}
+.mychip .x{background:rgba(10,18,40,.45)}
+.amb,.slot,.lr div{background:rgba(10,18,40,.35)}
+.amb.on{border-color:rgba(94,234,212,.55)}
+select option{background:#0b1226;color:var(--fg)}
+input[type=range]::-webkit-slider-runnable-track{background:rgba(160,200,255,.18)}
+input[type=range]::-moz-range-track{background:rgba(160,200,255,.18)}
+input[type=range]::-webkit-slider-thumb{background:#fff;border-color:#0b1226;box-shadow:0 0 10px rgba(94,234,212,.6)}
+.switch input:checked + .track{background:linear-gradient(135deg,#5eead4,#93c5fd)}
+.btn.primary{color:#03201c}
 </style>
 
+<div class="cosmos" aria-hidden="true"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><canvas id="sky"></canvas></div>
 <div class="wrap">
   <h1>Console Binaurale</h1>
 
@@ -245,10 +293,9 @@ select,input[type=text]{font:inherit;color:var(--fg);background:var(--raise);bor
   </div>
   <div class="grid" role="tabpanel" id="p-effetti" aria-labelledby="tab-effetti" hidden></div>
   <div class="grid" role="tabpanel" id="p-esporta" aria-labelledby="tab-esporta" hidden>
-    <section class="mod span2" aria-labelledby="h-share">
-      <div class="head"><div><h2 id="h-share">Condividi un suono</h2><p class="sub">Copia il codice e mandalo a chi usa la console: incollandolo ritrova le tue impostazioni.</p></div></div>
-      <div class="share"><input type="text" id="code" readonly aria-label="Codice delle impostazioni attuali"><button class="btn" id="copyBtn">Copia</button></div>
-      <div class="share"><input type="text" id="pasteCode" placeholder="Incolla qui un codice ricevuto" aria-label="Codice da applicare"><button class="btn" id="applyBtn">Applica</button></div>
+    <section class="mod span2 sharebox" aria-labelledby="h-share">
+      <div class="head"><div><h2 id="h-share">Condividi su WhatsApp</h2><p class="sub">Manda la console a un amico. Il link apre anche il suono che stai ascoltando adesso.</p></div></div>
+      <a class="btn primary wa" id="waBtn" href="#" target="_blank" rel="noopener"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.5-.3z"/></svg>Condividi</a>
       <p class="sub" id="shareStatus" aria-live="polite"></p>
     </section>
   </div>
@@ -926,7 +973,7 @@ function readouts(){
   $("cntFondi").textContent=nAmb?String(nAmb):"";
   const nFx=["echoMix","chorus","rotate","trem","sweep","warmth"].filter(k=>P[k]>0).length;
   $("cntFx").textContent=nFx?String(nFx):"";
-  $("code").value=encode();
+  updateShareLink();
   markMine();
   document.querySelectorAll("[data-preset]").forEach(btn=>{const pr=PRESETS[btn.dataset.preset].p;
     btn.setAttribute("aria-pressed",String(Object.keys(pr).every(k=>JSON.stringify(pr[k])===JSON.stringify(P[k]))))});
@@ -951,22 +998,46 @@ document.querySelectorAll("[data-preset]").forEach(btn=>btn.addEventListener("cl
 }));
 
 
-/* ---------- condivisione ---------- */
-function encode(){const o=clone(P);delete o.master;return "CB2."+btoa(JSON.stringify(o))}
-$("copyBtn").addEventListener("click",()=>{
-  const v=$("code").value,fb=()=>{$("code").select();$("shareStatus").textContent="Codice selezionato: premi Ctrl+C per copiarlo."};
-  try{navigator.clipboard.writeText(v).then(()=>{$("shareStatus").textContent="Codice copiato."},fb)}catch(e){fb()}
-});
-$("applyBtn").addEventListener("click",()=>{
-  const raw=$("pasteCode").value.trim();
+/* ---------- condivisione: link WhatsApp con il suono attuale ---------- */
+const PUBLIC_URL="https://guro-vibe.github.io/console-binaurale/";
+/* nel link vanno solo le impostazioni diverse da quelle di partenza, così resta corto */
+function encode(){
+  const o={},d=DEF;
+  for(const k of Object.keys(d)){
+    if(k==="master")continue;
+    if(k==="amb"){const a={};for(const n of Object.keys(P.amb))if(P.amb[n]>0)a[n]=Math.round(P.amb[n]*100)/100;if(Object.keys(a).length)o.amb=a;continue}
+    const v=typeof P[k]==="number"?Math.round(P[k]*1000)/1000:P[k];
+    if(v!==d[k])o[k]=v;
+  }
+  if(!o.amb)o.amb={};
+  return "CB3."+btoa(JSON.stringify(o)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function decode(raw){
+  if(!/^CB[123]\./.test(raw))return null;
+  let b=raw.slice(4).replace(/-/g,"+").replace(/_/g,"/");while(b.length%4)b+="=";
+  const o=JSON.parse(atob(b));const np=clone(DEF);
+  if(raw.startsWith("CB3.")&&!o.amb)o.amb={};
+  return sanitize(o,np)?np:null;
+}
+function shareLink(){
+  const onPublic=/github\.io$/.test(location.hostname);
+  const base=onPublic?location.origin+location.pathname:PUBLIC_URL;
+  return base+"#s="+encode();
+}
+function updateShareLink(){
+  const text="Ti mando la mia Console Binaurale: suoni per concentrarsi e rilassarsi, gratis e senza registrazione. Si apre con il suono che sto ascoltando, mettiti le cuffie 🎧\n"+shareLink();
+  $("waBtn").href="https://wa.me/?text="+encodeURIComponent(text);
+}
+$("waBtn").addEventListener("click",()=>{updateShareLink();$("shareStatus").textContent="Si apre WhatsApp: scegli a chi mandarlo."});
+/* chi apre un link condiviso ritrova il suono */
+(function openShared(){
   try{
-    if(!/^CB[12]\./.test(raw))throw 0;
-    const o=JSON.parse(atob(raw.slice(4)));const m=P.master,np=clone(DEF);
-    if(!sanitize(o,np))throw 0;np.master=m;P=np;
-    render();save();if(eng)eng.update(clone(P));
-    $("shareStatus").textContent="Impostazioni applicate.";$("pasteCode").value="";
-  }catch(e){$("shareStatus").textContent="Codice non valido: deve iniziare con CB2. e arrivare intero da questa console."}
-});
+    const m=/[#&]s=([^&]+)/.exec(location.hash);if(!m)return;
+    const np=decode(decodeURIComponent(m[1]));if(!np)return;
+    np.master=P.master;P=np;save();
+    setTimeout(()=>{try{statusEl.textContent="Ti hanno mandato questo suono: metti le cuffie e premi play."}catch(e){}},0);
+  }catch(e){}
+})();
 
 /* ---------- ascolto dal vivo ---------- */
 let liveOut=null,ctx=null,eng=null,master=null,startAt=0,tick=null,sleepFired=false;
@@ -1221,6 +1292,55 @@ $("saveCancel").addEventListener("click",closeSave);
 $("saveDo").addEventListener("click",doSave);
 $("saveName").addEventListener("keydown",ev=>{if(ev.key==="Enter"){ev.preventDefault();doSave()}else if(ev.key==="Escape")closeSave()});
 renderMine();
+
+/* ---------- cielo stellato: brilla e scorre piano ---------- */
+(function sky(){try{
+  const cv=document.getElementById("sky");if(!cv||!cv.getContext)return;
+  const g=cv.getContext("2d");
+  const touch=(()=>{try{return matchMedia("(pointer: coarse)").matches}catch(e){return false}})();
+  const calm=(()=>{try{return matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){return false}})();
+  let W=0,H=0,dpr=1,stars=[],big=[],dust=[],raf=0,last=0;
+  let seed=11;const r=()=>{seed=(seed*16807)%2147483647;return(seed-1)/2147483646};
+  /* bagliore pre-disegnato: costa molto meno che sfocare ogni stella */
+  const glow=document.createElement("canvas");glow.width=glow.height=64;
+  (()=>{const c=glow.getContext("2d"),gr=c.createRadialGradient(32,32,0,32,32,32);
+    gr.addColorStop(0,"rgba(255,255,255,1)");gr.addColorStop(.18,"rgba(200,230,255,.55)");gr.addColorStop(1,"rgba(200,230,255,0)");c.fillStyle=gr;c.fillRect(0,0,64,64)})();
+  function build(){
+    dpr=Math.min(window.devicePixelRatio||1,touch?1.5:2);W=innerWidth;H=innerHeight;
+    cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);g.setTransform(dpr,0,0,dpr,0,0);
+    seed=11;const n=Math.round(W*H/(touch?2400:1700));
+    stars=[];for(let i=0;i<n;i++){const z=r();
+      stars.push({x:r()*W,y:r()*H,s:z<.82?.3+r()*.35:z<.97?.6+r()*.35:.95+r()*.45,a:.45+r()*.55,
+        tw:.25+r()*.9,ph:r()*6.3,v:z<.82?2:z<.97?4:6,
+        c:(()=>{const t=r();return t<.7?"255,255,255":t<.85?"170,215,255":"160,255,235"})()})}
+    big=[];const nb=Math.max(4,Math.round(W*H/90000));
+    for(let i=0;i<nb;i++){let x=r()*W,y=r()*H;if(y<140&&x<W*.75)y+=160;big.push({x,y,L:4+r()*5,tw:.15+r()*.3,ph:r()*6.3})}
+    dust=[];for(let i=0;i<n*.7;i++){const t=r(),off=(r()-.5)*(r()-.5)*H*.5;dust.push({x:t*W,y:H*.15+t*H*.55+off,s:.25+r()*.45,a:.12+r()*.35})}
+  }
+  function draw(ts){
+    const t=ts/1000;g.clearRect(0,0,W,H);
+    /* via lattea: ferma */
+    for(const d of dust){g.fillStyle="rgba(255,255,255,"+d.a+")";g.fillRect(d.x,d.y,d.s,d.s)}
+    /* stelle: scorrono piano verso sinistra, le più vicine un po' più veloci, e brillano */
+    for(const s of stars){
+      const x=((s.x-t*s.v)%W+W)%W,k=.55+.45*Math.sin(t*s.tw+s.ph),a=s.a*k;
+      if(s.s>.9){g.globalAlpha=a*.5;const R=s.s*5;g.drawImage(glow,x-R,s.y-R,R*2,R*2);g.globalAlpha=1}
+      g.fillStyle="rgba("+s.c+","+a.toFixed(3)+")";g.beginPath();g.arc(x,s.y,s.s,0,6.283);g.fill();
+    }
+    /* poche stelle brillanti con i raggi, che pulsano lentamente */
+    for(const b of big){
+      const k=.5+.5*Math.sin(t*b.tw+b.ph),L=b.L*(.75+.35*k);
+      g.globalAlpha=.35+.5*k;g.drawImage(glow,b.x-L,b.y-L,L*2,L*2);
+      g.strokeStyle="rgba(220,240,255,"+(.25+.5*k).toFixed(3)+")";g.lineWidth=.6;
+      g.beginPath();g.moveTo(b.x-L,b.y);g.lineTo(b.x+L,b.y);g.moveTo(b.x,b.y-L);g.lineTo(b.x,b.y+L);g.stroke();g.globalAlpha=1;
+    }
+  }
+  const FPS=touch?20:30;
+  function loop(ts){if(ts-last<1000/FPS){raf=requestAnimationFrame(loop);return}last=ts;try{draw(ts);raf=requestAnimationFrame(loop)}catch(e){}}
+  build();draw(performance.now());
+  if(!calm)raf=requestAnimationFrame(loop);
+  let rt=0;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(()=>{try{build();draw(performance.now())}catch(e){}},200)});
+}catch(e){/* senza stelle la console funziona lo stesso */}})();
 
 sizeCanvas();render();
 
