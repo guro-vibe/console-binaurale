@@ -286,7 +286,7 @@ input[type=range]::-webkit-slider-thumb{background:#fff;border-color:#0b1226;box
   <div class="grid" role="tabpanel" id="p-suono" aria-labelledby="tab-suono"></div>
   <div class="grid" role="tabpanel" id="p-fondi" aria-labelledby="tab-fondi" hidden>
     <section class="mod span2" aria-labelledby="h-amb">
-      <div class="head"><div><h2 id="h-amb">Ambienti</h2><p class="sub">Mescolane quanti vuoi, anche natura e universo insieme: ogni cursore sopra lo zero aggiunge quel suono. Si generano al momento e non si ripetono mai uguali.</p></div>
+      <div class="head"><div><h2 id="h-amb">Ambienti</h2><p class="sub">Mescolane quanti vuoi: ogni cursore sopra lo zero aggiunge quel suono. Si generano al momento e non si ripetono mai uguali.</p></div>
         <button class="btn" id="ambZero">Azzera</button></div>
       <div class="ambgrid" id="ambgrid"></div>
     </section>
@@ -305,8 +305,8 @@ input[type=range]::-webkit-slider-thumb{background:#fff;border-color:#0b1226;box
 (function(){
 "use strict";
 const NOTES=["Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"];
-const AMBS=[["pioggia","Pioggia","n"],["temporale","Temporale","n"],["mare","Onde del mare","n"],["ruscello","Ruscello","n"],["vento","Vento","n"],["fuoco","Fuoco nel camino","n"],["grilli","Grilli di notte","n"],["uccelli","Uccelli","n"],["cuore","Battito del cuore","n"],["bianco","Rumore bianco","n"],["rosa","Rumore rosa","n"],["marrone","Rumore marrone","n"],
-  ["spirale","Spirale infinita","u"],["stelle","Stelle","u"],["ventoSolare","Vento solare","u"],["bucoNero","Buco nero","u"],["pulsar","Pulsar","u"],["radio","Onde radio cosmiche","u"],["voci","Voci cosmiche","u"],["respiro","Respiro dell'universo","u"]];
+const AMBS=[["pioggia","Pioggia","n"],["temporale","Temporale","n"],["mare","Onde del mare","n"],["ruscello","Ruscello","n"],["uccelli","Uccelli","n"],["cuore","Battito del cuore","n"],["bianco","Rumore bianco","n"],["rosa","Rumore rosa","n"],["marrone","Rumore marrone","n"],
+  ["stelle","Stelle","u"],["radio","Onde radio cosmiche","u"],["respiro","Respiro dell'universo","u"]];
 const AMB0={};AMBS.forEach(a=>{AMB0[a[0]]=0});
 const TIMBRES=[["profondo","Drone profondo"],["coro","Coro"],["cristallo","Cristallo"],["organo","Organo"],["campana","Campana cantante"],["morbido","Morbido"]];
 const INSTS=[["handpan","Handpan"],["piano","Piano"],["kalimba","Kalimba"],["carillon","Carillon"],["flauto","Flauto"]];
@@ -326,16 +326,16 @@ const DEF={beat:4,carrier:196,toneVol:0.22,lock:true,
 function mk(o){const p=JSON.parse(JSON.stringify(DEF));delete p.master;const a=Object.assign({},AMB0,o.amb||{});Object.assign(p,o);p.amb=a;return p}
 const PRESETS={
   droneDo:{label:"Drone in Do",p:mk({})},
-  drone432:{label:"Drone 432 in Fa",p:mk({beat:2,carrier:171,tuning:432,root:5,bright:0.5,motion:0.45,subOn:true,subVol:0.13,pulse:0.6,space:0.5})},
-  temporale:{label:"Temporale notturno",p:mk({beat:2,carrier:147,root:2,mode:"fifth",prog:"lenta",bright:0.35,padVol:0.55,subOn:true,subVol:0.15,amb:{temporale:0.3,pioggia:0.15},revType:"cattedrale",space:0.4,warmth:0.3})},
+  drone432:{label:"Drone 432 in Fa",p:mk({beat:2,carrier:171,tuning:432,root:5,bright:0.5,motion:0.45,space:0.5})},
+  temporale:{label:"Temporale notturno",p:mk({beat:2,carrier:147,root:2,mode:"fifth",prog:"lenta",bright:0.35,padVol:0.55,amb:{temporale:0.3,pioggia:0.15},revType:"cattedrale",space:0.4,warmth:0.3})},
   foresta:{label:"Foresta",p:mk({beat:9,carrier:196,timbre:"coro",root:7,mode:"maj",prog:"lenta",bright:0.4,motion:0.4,padVol:0.45,melOn:true,melInst:"handpan",melDensity:0.35,melVol:0.35,amb:{uccelli:0.2,ruscello:0.2},space:0.35})},
   campane:{label:"Campane tibetane",p:mk({beat:5,carrier:220,timbre:"campana",root:9,mode:"one",bright:0.4,motion:0.4,padVol:0.55,bellsOn:true,bellType:"tibetana",bellEvery:18,bellVol:0.4,revType:"cattedrale",space:0.5,echoMix:0.2,echoTime:0.8})},
-  spazio:{label:"Spazio infinito",p:mk({beat:3,carrier:165,timbre:"cristallo",root:4,mode:"sus",prog:"lenta",bright:0.4,motion:0.5,padVol:0.5,subOn:true,subVol:0.2,revType:"infinito",space:0.6,echoMix:0.35,echoTime:0.9,echoFb:0.55,rotate:0.5,rotRate:0.2,sweep:0.4})},
-  carillon:{label:"Carillon dei sogni",p:mk({beat:3,carrier:196,lock:true,timbre:"morbido",root:7,mode:"maj",prog:"lenta",bright:0.3,motion:0.3,padVol:0.45,pad2On:true,pad2Timbre:"cristallo",pad2Oct:0,pad2Vol:0.2,arpOn:true,arpInst:"carillon",arpPattern:"sugiu",arpSpeed:0.25,arpVol:0.3,amb:{mare:0.2},revType:"cattedrale",space:0.45,echoMix:0.15,echoTime:0.75})},
+  spazio:{label:"Spazio infinito",p:mk({beat:3,carrier:165,timbre:"cristallo",root:4,mode:"sus",prog:"lenta",bright:0.4,motion:0.5,padVol:0.5,revType:"infinito",space:0.6,echoMix:0.35,echoTime:0.9,echoFb:0.55,rotate:0.5,rotRate:0.2,sweep:0.4})},
+  carillon:{label:"Carillon dei sogni",p:mk({beat:3,carrier:196,lock:true,timbre:"morbido",root:7,mode:"maj",prog:"lenta",bright:0.3,motion:0.3,padVol:0.45,pad2On:true,pad2Timbre:"cristallo",pad2Oct:0,pad2Vol:0.2,melOn:true,melInst:"carillon",melVary:false,melDensity:0.75,melVol:0.32,amb:{mare:0.2},revType:"cattedrale",space:0.45,echoMix:0.15,echoTime:0.75})},
   sonno:{label:"Sonno profondo",p:mk({beat:2.5,carrier:140,toneVol:0.3,lock:false,timbre:"morbido",root:2,mode:"sus",bright:0.15,motion:0.15,padVol:0.45,amb:{mare:0.3},space:0.3})},
   meditazione:{label:"Meditazione",p:mk({beat:6,carrier:180,toneVol:0.35,lock:false,timbre:"morbido",root:9,mode:"min",bright:0.3,motion:0.3,padVol:0.5,bellsOn:true,bellEvery:22,bellVol:0.35,space:0.4})},
-  infinito:{label:"Viaggio nell'infinito",p:mk({beat:3,carrier:165,timbre:"cristallo",root:4,mode:"sus",prog:"lenta",bright:0.4,motion:0.5,padVol:0.4,subOn:true,subVol:0.15,amb:{spirale:0.35,stelle:0.25,ventoSolare:0.12},revType:"infinito",space:0.6,echoMix:0.3,echoTime:1.0,echoFb:0.5,rotate:0.3,rotRate:0.15})},
-  buconero:{label:"Buco nero",p:mk({beat:1.5,carrier:147,root:2,mode:"one",bright:0.25,padVol:0.55,subOn:true,subVol:0.25,pulse:0.3,amb:{bucoNero:0.35,radio:0.1},revType:"cattedrale",space:0.5,warmth:0.3})},
+  infinito:{label:"Viaggio nell'infinito",p:mk({beat:3,carrier:165,timbre:"cristallo",root:4,mode:"sus",prog:"lenta",bright:0.4,motion:0.5,padVol:0.4,amb:{stelle:0.3,respiro:0.18},revType:"infinito",space:0.6,echoMix:0.3,echoTime:1.0,echoFb:0.5,rotate:0.3,rotRate:0.15})},
+  buconero:{label:"Buco nero",p:mk({beat:1.5,carrier:147,root:2,mode:"one",bright:0.25,padVol:0.55,amb:{marrone:0.35,radio:0.1},revType:"cattedrale",space:0.5,warmth:0.3})},
   focus:{label:"Concentrazione",p:mk({beat:16,carrier:260,toneVol:0.3,lock:false,timbre:"morbido",root:7,mode:"sus",bright:0.55,motion:0.2,padVol:0.35,amb:{marrone:0.25},revType:"stanza",space:0.15})}
 };
 
@@ -353,6 +353,7 @@ function sanitize(o,P){
   P.bellEvery=clamp(P.bellEvery,6,60);P.echoTime=clamp(P.echoTime,0.1,1.5);P.echoFb=clamp(P.echoFb,0,0.85);
   for(const k of ["toneVol","bright","motion","padVol","pad2Vol","arpSpeed","arpVol","melDensity","melVol","subVol","pulse","bellVol","space","echoMix","chorus","rotate","rotRate","trem","sweep","warmth","master"])P[k]=clamp(P[k],0,1);
   if(P.tuning!==432)P.tuning=440;
+  P.subOn=false;P.arpOn=false; /* basso profondo e arpeggio non sono più nella console */
   if(![-12,0,12].includes(P.pad2Oct))P.pad2Oct=12;
   return ok;
 }
@@ -877,15 +878,7 @@ const SPEC={
       ["w","melVary","Varia nel tempo: frasi diverse separate da pause, e a ogni frase cambiano strumento e altezza"],
       ["s","melInst","Strumento (quando non varia)",INSTS],
       ["r","melDensity","Densità delle note",0,1,0.01,"melHint"],
-      ["r","melVol","Volume",0,1,0.01]]},
-    {id:"m-arp",title:"Arpeggio",sub:"Le note dell'accordo suonate una alla volta, come un carillon. Segue la progressione di accordi.",toggle:"arpOn",fields:[
-      ["row",["s","arpInst","Strumento",INSTS],["s","arpPattern","Andamento",[["sugiu","Sale e scende"],["su","Sale e ricomincia"],["casuale","Casuale"]]]],
-      ["r","arpSpeed","Velocità",0,1,0.01,"arpHint"],
-      ["r","arpVol","Volume",0,1,0.01]]},
-    {id:"m-sub",title:"Basso profondo",sub:"Una nota grave due ottave sotto la nota base: si sente più nel corpo che nelle orecchie.",toggle:"subOn",fields:[
-      ["html",'<div class="lr" style="grid-template-columns:1fr"><div><span class="label">Frequenza</span><span class="mono" id="subHz"></span></div></div>'],
-      ["r","subVol","Volume",0,1,0.01],
-      ["r","pulse","Pulsazione",0,1,0.01,"pulseHint"]]}
+      ["r","melVol","Volume",0,1,0.01]]}
   ],
   fondi:[
     {id:"m-bells",span:true,title:"Campane",sub:"Rintocchi accordati sulla nota base.",toggle:"bellsOn",fields:[
@@ -931,7 +924,7 @@ $("p-suono").innerHTML=SPEC.suono.map(modHtml).join("");
 $("p-fondi").insertAdjacentHTML("beforeend",SPEC.fondi.map(modHtml).join(""));
 $("p-effetti").innerHTML=SPEC.effetti.map(modHtml).join("");
 const ambCard=([k,l])=>'<div class="amb" id="amb-'+k+'"><div class="top"><label for="a-'+k+'">'+esc(l)+'</label><span class="val" id="va-'+k+'"></span></div><input type="range" id="a-'+k+'" data-amb="'+k+'" min="0" max="1" step="0.01"></div>';
-$("ambgrid").innerHTML='<h3 class="grp">Natura</h3>'+AMBS.filter(a=>a[2]==="n").map(ambCard).join("")+'<h3 class="grp">Universo e infinito</h3>'+AMBS.filter(a=>a[2]==="u").map(ambCard).join("");
+$("ambgrid").innerHTML=AMBS.map(ambCard).join("");
 $("presets").insertAdjacentHTML("beforeend",Object.keys(PRESETS).map(k=>'<button class="chip" data-preset="'+k+'">'+esc(PRESETS[k].label)+' <small>'+PRESETS[k].p.beat+' Hz</small></button>').join(""));
 
 /* ---------- tab ---------- */
@@ -961,11 +954,8 @@ function readouts(){
   const ec=effCarrier(P);
   $("fL").textContent=(ec-P.beat/2).toFixed(2)+" Hz";$("fR").textContent=(ec+P.beat/2).toFixed(2)+" Hz";
   $("carrierHint").textContent=P.lock?"Agganciato a "+ec.toFixed(1)+" Hz, "+harmonicOf(P)+"ª armonica del "+NOTES[P.root]+" del tappeto.":"Consigliato tra 150 e 400 Hz: più basso è più morbido.";
-  $("subHz").textContent=(rootHz(P.root,P)*0.25).toFixed(2)+" Hz ("+NOTES[P.root]+"1)"+(P.prog!=="off"?", segue gli accordi":"");
-  $("pulseHint").textContent=P.pulse>0?"Il basso pulsa a "+pulseRate(P.beat).toFixed(2)+" Hz, a tempo con il battimento. Si sente anche dalle casse.":"Spenta: il basso resta continuo.";
   $("tremHint").textContent=P.trem>0?"Tutta la musica pulsa a "+pulseRate(P.beat).toFixed(2)+" Hz, a tempo con il battimento. Si sente anche dalle casse.":"Spenta.";
   $("melHint").textContent="Circa una nota ogni "+(7-P.melDensity*5.5).toFixed(1)+" s"+(P.melVary?", con pause tra una frase e l'altra.":".");
-  $("arpHint").textContent=(0.5+P.arpSpeed*2.5).toFixed(1)+" note al secondo"+(P.prog==="off"?". Attiva la progressione di accordi nel tappeto per farlo cambiare nel tempo.":".");
   $("f-melInst").disabled=!!P.melVary;
   $("bigHz").textContent=P.beat.toFixed(1)+" Hz";
   const b=bandOf(P.beat);$("bandName").textContent=b.name;$("bandUse").textContent=b.use;$("bandDot").style.background=b.color;
